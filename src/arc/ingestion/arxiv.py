@@ -25,7 +25,7 @@ from arc.schemas import Paper
 
 logger = logging.getLogger(__name__)
 
-ARXIV_API_URL = "http://export.arxiv.org/api/query"
+ARXIV_API_URL = "https://export.arxiv.org/api/query"
 ARXIV_NS = {
     "atom": "http://www.w3.org/2005/Atom",
     "arxiv": "http://arxiv.org/schemas/atom",
@@ -43,7 +43,7 @@ class ArxivClient:
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
         self.store = store
-        self.http = http_client or httpx.AsyncClient(timeout=30.0)
+        self.http = http_client or httpx.AsyncClient(timeout=30.0, follow_redirects=True)
 
     # ------------------------------------------------------------------
     # Fetch & parse
@@ -53,10 +53,11 @@ class ArxivClient:
         self,
         category: str,
         max_results: int = 200,
+        max_retries: int = 3,
     ) -> list[dict[str, Any]]:
         """Fetch recent submissions for a single arXiv category.
 
-        Returns a list of raw entry dicts parsed from the Atom XML feed.
+        Retries with exponential backoff on 429 / 5xx.
         """
         params: dict[str, Any] = {
             "search_query": f"cat:{category}",
@@ -64,10 +65,32 @@ class ArxivClient:
             "sortOrder": "descending",
             "max_results": max_results,
         }
-        logger.info("Fetching arXiv category=%s max_results=%d", category, max_results)
-        resp = await self.http.get(ARXIV_API_URL, params=params)
-        resp.raise_for_status()
-        return self._parse_entries(resp.text)
+        last_error = ""
+        for attempt in range(max_retries):
+            try:
+                logger.info(
+                    "Fetching arXiv category=%s max_results=%d attempt=%d",
+                    category, max_results, attempt + 1,
+                )
+                resp = await self.http.get(ARXIV_API_URL, params=params)
+                resp.raise_for_status()
+                return self._parse_entries(resp.text)
+            except httpx.HTTPStatusError as exc:
+                last_error = str(exc)
+                status = exc.response.status_code
+                if status in (429, 502, 503):
+                    wait = 3.0 * (2 ** attempt)
+                    logger.warning(
+                        "arXiv %s for %s, retrying in %.0fs (attempt %d/%d)",
+                        status, category, wait, attempt + 1, max_retries,
+                    )
+                    await asyncio.sleep(wait)
+                else:
+                    raise
+        raise httpx.HTTPStatusError(
+            f"arXiv {category} failed after {max_retries} retries: {last_error}",
+            request=resp.request, response=resp,
+        )
 
     def _parse_entries(self, xml_text: str) -> list[dict[str, Any]]:
         """Parse arXiv Atom XML into a list of raw entry dicts."""
