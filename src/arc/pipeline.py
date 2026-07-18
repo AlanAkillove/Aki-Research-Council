@@ -8,7 +8,9 @@ from uuid import uuid4
 
 from arc.ingestion import ArxivClient, PaperStore
 from arc.memory import list_projects, load_researcher_profile
+from arc.normalization import run_normalization
 from arc.paths import DATA_DIR, ensure_runtime_dirs
+from arc.ranking import run_screening
 from arc.reporting import write_daily_reports
 from arc.schemas import RunLog
 
@@ -31,6 +33,59 @@ async def run_ingest_step(
         return results
     finally:
         await client.close()
+
+
+def run_normalize_step() -> dict:
+    """Run the paper normalisation step (synchronous).
+
+    Returns a dict with keys from ``NormalizationReport``.
+    """
+    store = PaperStore(DATA_DIR / "indexes")
+    try:
+        report = run_normalization(store)
+        return {
+            "processed": report.processed,
+            "normalized": report.normalized,
+            "duplicates": report.duplicates,
+            "errors": report.errors,
+        }
+    finally:
+        store.close()
+
+
+async def run_screening_step(
+    provider: ModelProvider | None = None,
+) -> dict:
+    """Run the two-stage screening pipeline (async).
+
+    Returns a serialisable report dict.
+    """
+    from arc.config import load_models_config
+    from arc.providers.openai_compatible import OpenAICompatibleProvider
+
+    store = PaperStore(DATA_DIR / "indexes")
+    try:
+        if provider is None:
+            models = load_models_config()
+            provider = OpenAICompatibleProvider(models.triage)
+
+        report = await run_screening(store, provider)
+        return {
+            "stage1_passed": report.stage1_passed,
+            "stage2_screened": report.stage2_screened,
+            "featured": report.featured,
+            "errors": report.errors,
+            "top_candidates": [
+                {
+                    "canonical_id": c.paper.canonical_id,
+                    "title": c.paper.title[:80],
+                    "composite": round(c.composite, 3),
+                }
+                for c in report.candidates[: report.featured]
+            ],
+        }
+    finally:
+        store.close()
 
 
 def build_skeleton_daily_context(day: date | None = None) -> dict:

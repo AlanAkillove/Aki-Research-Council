@@ -6,6 +6,11 @@
 
 ### Added
 
+- 归一化管线：title_fingerprint dedup、check_dedup、run_normalization（metadata_only → NORMALIZED）
+- 两阶段筛选：Stage 1 硬过滤（category/topic/negative keywords） + Stage 2 LLM 多维评分 + composite_score 排名
+- `arc ingest normalize` / `arc ingest screen` CLI 命令
+- 管线 `run_normalize_step` / `run_screening_step` 函数
+- 测试：normalization dedup、hard filter、composite score
 - arXiv 增量抓取客户端：按分类查询 arXiv API，Atom XML 解析，增量游标
 - SQLite 持久层：PaperStore（papers 表 + source_cursors 表），支持 upsert/查询/游标管理
 - `arc ingest arxiv` / `arc ingest status` CLI 命令
@@ -16,7 +21,9 @@
 
 ### Changed
 
-- `arc/ingestion/__init__.py`：从 stub 替换为实际导出（ArxivClient, PaperStore）
+- `arc/normalization/__init__.py`：从 stub 升级为完整管线（dedup/指纹/状态转换）
+- `arc/ranking/__init__.py`：从单一 composite_score 扩展为完整两阶段筛选
+- `arc/config.py`：新增 `load_topics_config()`
 
 ### Fixed
 

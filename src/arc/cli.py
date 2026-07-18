@@ -12,8 +12,9 @@ from arc import __version__
 from arc.config import load_models_config, load_ranking_config, load_sources_config
 from arc.ingestion import ArxivClient, PaperStore
 from arc.memory import list_projects
+from arc.normalization import run_normalization as normalize_papers
 from arc.paths import DATA_DIR, REPO_ROOT, ensure_runtime_dirs, load_env
-from arc.pipeline import run_daily_skeleton
+from arc.pipeline import run_daily_skeleton, run_normalize_step, run_screening_step
 
 app = typer.Typer(
     name="arc",
@@ -141,6 +142,15 @@ def ingest_status() -> None:
     store = PaperStore(DATA_DIR / "indexes")
     total = store.count_papers()
     typer.echo(f"Papers in store: {total}")
+    by_status = {}
+    for s in ("metadata_only", "NORMALIZED", "SCREENED", "EVIDENCE_READY"):
+        c = store.count_papers(s)
+        if c:
+            by_status[s] = c
+    if by_status:
+        typer.echo("By status:")
+        for s, c in by_status.items():
+            typer.echo(f"  {s}: {c}")
     cursors = store.list_cursors()
     if cursors:
         typer.echo("Source cursors:")
@@ -149,6 +159,60 @@ def ingest_status() -> None:
     else:
         typer.echo("Source cursors: (none)")
     store.close()
+
+
+@_ingest_app.command("normalize")
+def ingest_normalize() -> None:
+    """Normalize all unprocessed papers (metadata_only → NORMALIZED)."""
+    ensure_runtime_dirs()
+    store = PaperStore(DATA_DIR / "indexes")
+    try:
+        report = normalize_papers(store)
+        typer.echo(
+            f"Normalize: processed={report.processed} "
+            f"normalized={report.normalized} "
+            f"duplicates={report.duplicates} "
+            f"errors={len(report.errors)}"
+        )
+        for err in report.errors[:5]:
+            typer.secho(f"  error: {err}", fg=typer.colors.RED)
+    finally:
+        store.close()
+
+
+@_ingest_app.command("screen")
+def ingest_screen(
+    echo_provider: bool = typer.Option(
+        True,
+        "--echo/--no-echo",
+        help="Use EchoModelProvider (offline) vs real LLM",
+    ),
+) -> None:
+    """Run two-stage screening on NORMALIZED papers."""
+    ensure_runtime_dirs()
+    if echo_provider:
+        from arc.providers import EchoModelProvider
+
+        provider = EchoModelProvider()
+    else:
+        from arc.config import load_models_config
+        from arc.providers.openai_compatible import OpenAICompatibleProvider
+
+        models = load_models_config()
+        provider = OpenAICompatibleProvider(models.triage)
+
+    report = asyncio.run(run_screening_step(provider))
+    typer.echo(
+        f"Screen: stage1_passed={report['stage1_passed']} "
+        f"stage2_screened={report['stage2_screened']} "
+        f"featured={report['featured']}"
+    )
+    for c in report.get("top_candidates", []):
+        typer.echo(f"  [{c['composite']}] {c['title']}")
+    for err in report.get("errors", [])[:5]:
+        typer.secho(f"  error: {err}", fg=typer.colors.RED)
+    if not report["stage1_passed"]:
+        typer.secho("  (no candidates — run 'arc ingest arxiv' then 'arc ingest normalize' first)", fg=typer.colors.YELLOW)
 
 
 def main() -> None:
