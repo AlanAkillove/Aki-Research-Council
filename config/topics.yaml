@@ -1,0 +1,21 @@
+channels:
+  - ai_for_math
+  - structured_and_reliable_vision
+  - combinatorics_and_matroids
+
+topic_keywords:
+  ai_for_math:
+    - theorem proving
+    - formal verification
+    - lean
+    - mathematical reasoning
+  structured_and_reliable_vision:
+    - calibration
+    - selective prediction
+    - self-critique
+    - frequency domain
+  combinatorics_and_matroids:
+    - matroid
+    - log-concave
+    - generating function
+    - combinatorial injection

@@ -7,7 +7,17 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.uv/
 data/raw/
 data/normalized/
+data/evidence/
+data/indexes/
 *.sqlite
+reports/daily/*
+!reports/.gitkeep
+reports/weekly/*
+reports/monthly/*
+reports/topic/*
 .DS_Store
+dist/
+*.egg-info/

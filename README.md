@@ -2,7 +2,22 @@
 
 持续型个人研究委员会：用 Research State 跟踪项目与约束，将新证据转化为研究决策与最小验证任务。
 
-## 快速入口
+## 快速开始
+
+```bash
+# 需要 Python 3.12+ 与 uv
+cd D:\DesktopDocs\projects\aki-research-council
+uv sync --extra dev
+copy .env.example .env   # 填入密钥（勿提交）
+
+uv run arc doctor
+uv run arc smoke
+uv run arc daily --skeleton
+```
+
+生成的骨架日报在 `reports/daily/`。
+
+## 文档
 
 | 你想… | 去哪 |
 |------|------|
@@ -15,22 +30,30 @@
 | 当前任务 | [`TODO.md`](TODO.md) |
 | 给 Agent 的纪律 | [`AGENTS.md`](AGENTS.md) |
 
-## 文档结构
-
 ```text
 docs/
 ├── product/   # PRD · Architecture · Tech Spec · Acceptance · UI
 └── collab/    # ADR · Runbook · DoD · Eval · Postmortems …
 ```
 
+## 仓库布局（实现）
+
+```text
+src/arc/           # 包代码
+config/            # sources / models / ranking / …
+research_state/    # 项目与开放问题（示例已入库）
+templates/         # Jinja2 + CSS tokens
+reports/           # 生成物
+tests/
+```
+
 ## 状态
 
-当前以文档与协作基建为主（产品 v0.3 / 选型见 [ADR-0002](docs/collab/adr/0002-stack-revision.md)）。按验收清单 **P1 → P4** 推进；流水线尚未可运行。
-
-远程仓库：<https://github.com/AlanAkillove/Aki-Research-Council>（SSH 提交）。
-
-配置密钥时复制 [`.env.example`](.env.example) 为 `.env`（勿提交）。
+- 骨架已就位：`uv run arc smoke` 应通过
+- 实时 arXiv ingest / 两阶段筛选尚未实现（见 `TODO.md` Next）
+- 选型见 [ADR-0002](docs/collab/adr/0002-stack-revision.md)
+- 远程：<https://github.com/AlanAkillove/Aki-Research-Council>
 
 ## 开发
 
-见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。实现冲突时：意图看 product 01/02，字段看 03，完工看 04。
+见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。实现冲突时：意图看 product 01/02，字段看 03，完工看 04，视觉看 05。

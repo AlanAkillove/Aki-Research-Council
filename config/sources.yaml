@@ -1,0 +1,49 @@
+channels:
+  ai_for_math:
+    enabled: true
+  structured_and_reliable_vision:
+    enabled: true
+  combinatorics_and_matroids:
+    enabled: true
+
+arxiv:
+  categories:
+    ai:
+      - cs.AI
+      - cs.LG
+      - cs.CV
+      - cs.CL
+      - cs.MA
+      - cs.LO
+    mathematics:
+      - math.CO
+      - math.MG
+      - math.OC
+      - math.PR
+      - math.RA
+      - math.LO
+  # Prefer TeX source for math papers when available
+  prefer_tex_for_math: true
+
+openreview:
+  enabled: true
+  venues: []  # fill as needed (ICLR/NeurIPS/ICML forum ids)
+
+semantic_scholar:
+  enabled: true
+  use_positive_negative_seeds: true
+
+openalex:
+  enabled: true
+
+crossref:
+  enabled: true
+
+unpaywall:
+  enabled: true
+  # email via OPENALEX_EMAIL / UNPAYWALL_EMAIL in .env
+
+secondary_sources:
+  github: true
+  huggingface: true
+  lab_blogs: true

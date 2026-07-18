@@ -1,0 +1,156 @@
+"""Pydantic schemas — authority for structured I/O (Tech Spec)."""
+
+from __future__ import annotations
+
+from datetime import datetime
+from enum import StrEnum
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+
+class PipelineStatus(StrEnum):
+    INGESTED = "INGESTED"
+    NORMALIZED = "NORMALIZED"
+    SCREENED = "SCREENED"
+    EVIDENCE_READY = "EVIDENCE_READY"
+    REVIEWED = "REVIEWED"
+    CHAIR_DECIDED = "CHAIR_DECIDED"
+    PUBLISHED = "PUBLISHED"
+
+
+class ClaimType(StrEnum):
+    FACT = "fact"
+    AUTHOR_CLAIM = "author_claim"
+    EXTERNAL_CLAIM = "external_claim"
+    INFERENCE = "inference"
+    HYPOTHESIS = "hypothesis"
+    RECOMMENDATION = "recommendation"
+
+
+class Verdict(StrEnum):
+    READ = "READ"
+    TRY = "TRY"
+    WATCH = "WATCH"
+    ARCHIVE = "ARCHIVE"
+    NO_GO = "NO-GO"
+    UPDATE = "UPDATE"
+
+
+class IdeaStage(StrEnum):
+    SIGNAL = "signal"
+    HYPOTHESIS = "hypothesis"
+    CANDIDATE = "candidate"
+    VALIDATED_CANDIDATE = "validated_candidate"
+    ACTIVE_PROJECT = "active_project"
+    REJECTED = "rejected"
+
+
+class SourceTier(StrEnum):
+    A = "A"
+    B = "B"
+    C = "C"
+    D = "D"
+
+
+class NoveltyLabel(StrEnum):
+    NO_CLOSE_MATCH = "未发现高度相似工作"
+    SIMILAR_MECHANISM_DIFF_OBJECT = "发现相似机制但应用对象不同"
+    SAME_PROBLEM_DIFF_PROTOCOL = "发现相同问题但评价协议不同"
+    LARGELY_COVERED = "已有工作基本覆盖该想法"
+    INSUFFICIENT_EVIDENCE = "证据不足，不能判断"
+
+
+class Paper(BaseModel):
+    canonical_id: str
+    doi: str | None = None
+    arxiv_id: str | None = None
+    openreview_id: str | None = None
+    semantic_scholar_id: str | None = None
+    openalex_id: str | None = None
+    title: str
+    authors: list[str] = Field(default_factory=list)
+    categories: list[str] = Field(default_factory=list)
+    abstract: str = ""
+    pdf_url: str | None = None
+    source_url: str | None = None
+    code_urls: list[str] = Field(default_factory=list)
+    versions: list[str] = Field(default_factory=list)
+    related_projects: list[str] = Field(default_factory=list)
+    processing_status: str = "metadata_only"
+
+
+class Evidence(BaseModel):
+    id: str
+    paper_id: str
+    content: str
+    evidence_type: str = "other"
+    source_tier: SourceTier = SourceTier.A
+    extraction_method: str = "api"
+    confidence: float = Field(ge=0.0, le=1.0, default=0.8)
+    location: dict[str, Any] = Field(default_factory=dict)
+
+
+class Claim(BaseModel):
+    claim_id: str
+    text: str
+    type: ClaimType
+    confidence: str = "medium"
+    evidence_for: list[str] = Field(default_factory=list)
+    evidence_against: list[str] = Field(default_factory=list)
+    generated_by: str = "system"
+    approved_by: str | None = None
+    paper_id: str | None = None
+
+
+class Decision(BaseModel):
+    object_id: str
+    verdict: Verdict
+    confidence: float = Field(ge=0.0, le=1.0, default=0.5)
+    rationale: list[str] = Field(default_factory=list)
+    revisit_when: list[str] = Field(default_factory=list)
+    actions: list[str] = Field(default_factory=list)
+    claim_ids: list[str] = Field(default_factory=list)
+
+
+class Idea(BaseModel):
+    idea_id: str
+    title: str
+    stage: IdeaStage = IdeaStage.SIGNAL
+    claim: str = ""
+    difference_from_prior_work: str = ""
+    minimum_test: str = ""
+    kill_criteria: list[str] = Field(default_factory=list)
+    derived_from: dict[str, list[str]] = Field(default_factory=dict)
+    feasibility: dict[str, str] = Field(default_factory=dict)
+    max_contribution: str = ""
+    easiest_failure: str = ""
+
+
+class ScreenScores(BaseModel):
+    """Multi-dimensional triage — never a single opaque score only."""
+
+    topic_relevance: float = Field(ge=0.0, le=1.0)
+    project_relevance: float = Field(ge=0.0, le=1.0)
+    method_transferability: float = Field(ge=0.0, le=1.0)
+    novelty_signal: float = Field(ge=0.0, le=1.0)
+    feasibility: float = Field(ge=0.0, le=1.0)
+    evidence_quality: float = Field(ge=0.0, le=1.0)
+    redundancy: float = Field(ge=0.0, le=1.0)
+    recommended_action: str = "ignore"
+
+
+class RunLog(BaseModel):
+    run_id: str
+    git_commit: str | None = None
+    started_at: datetime
+    finished_at: datetime | None = None
+    mode: str
+    model_versions: dict[str, str] = Field(default_factory=dict)
+    prompt_versions: dict[str, str] = Field(default_factory=dict)
+    source_cursors: dict[str, Any] = Field(default_factory=dict)
+    input_tokens: int = 0
+    output_tokens: int = 0
+    total_cost_usd: float = 0.0
+    status: str = "success"
+    failures: list[str] = Field(default_factory=list)

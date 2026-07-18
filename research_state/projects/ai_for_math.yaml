@@ -1,0 +1,21 @@
+project_id: ai_for_math
+title: AI for research-level mathematics
+status: exploring
+channel: ai_for_math
+
+core_question: >
+  Which mechanisms transfer from contest/formal settings to open research
+  mathematics under single-GPU constraints?
+
+current_hypotheses:
+  - verifiable rewards and formal checkers matter more than raw scale for trust
+
+constraints:
+  compute: single_consumer_gpu
+  avoid_large_scale_pretraining: true
+
+known_failures: []
+
+death_conditions:
+  - contribution reduces to prompt wrappers without verifiable gain
+  - requires multi-node training as a hard dependency

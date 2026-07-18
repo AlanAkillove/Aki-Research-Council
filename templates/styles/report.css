@@ -1,0 +1,109 @@
+/* Daily brief layout — Claude warm editorial (expects tokens.css loaded first) */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--arc-canvas);
+  color: var(--arc-body);
+  font-family: var(--arc-font-body);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+a { color: var(--arc-primary); }
+
+.wrap {
+  max-width: var(--arc-max-width);
+  margin: 0 auto;
+  padding: 48px 24px 96px;
+}
+
+.brand {
+  font-family: var(--arc-font-display);
+  font-weight: 400;
+  font-size: 48px;
+  letter-spacing: -0.03em;
+  color: var(--arc-ink);
+  margin: 0 0 4px;
+  line-height: 1.1;
+}
+
+.meta {
+  color: var(--arc-muted);
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 48px;
+}
+
+h2 {
+  font-family: var(--arc-font-display);
+  font-weight: 400;
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  color: var(--arc-ink);
+  margin: 48px 0 16px;
+}
+
+.card {
+  background: var(--arc-surface-card);
+  border-radius: var(--arc-radius-lg);
+  padding: 24px 32px;
+  margin: 12px 0;
+}
+
+.headline-num {
+  color: var(--arc-primary);
+  font-weight: 500;
+  margin-right: 8px;
+}
+
+.headline-title {
+  font-family: var(--arc-font-display);
+  font-size: 22px;
+  color: var(--arc-ink);
+  letter-spacing: -0.02em;
+}
+
+.muted { color: var(--arc-muted); }
+
+.actions {
+  list-style: decimal;
+  padding-left: 1.25rem;
+}
+
+.actions li { margin: 8px 0; }
+
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: var(--arc-radius-pill);
+  background: var(--arc-surface-card);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.badge.partial {
+  background: var(--arc-accent-amber);
+  color: var(--arc-ink);
+}
+
+.dark {
+  background: var(--arc-surface-dark);
+  color: var(--arc-on-dark);
+  border-radius: var(--arc-radius-lg);
+  padding: 24px;
+  font-family: var(--arc-font-mono);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.dark .label { color: var(--arc-on-dark-soft); }
+
+footer {
+  margin-top: 64px;
+  padding-top: 24px;
+  border-top: 1px solid var(--arc-hairline);
+  color: var(--arc-muted-soft);
+  font-size: 13px;
+}

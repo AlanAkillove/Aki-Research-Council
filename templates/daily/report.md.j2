@@ -1,0 +1,55 @@
+# {{ brand }} — {{ subtitle }}
+
+**Date:** {{ date }} · **Mode:** {{ mode }}{% if partial %} · `partial`{% endif %}
+
+## 今日结论
+
+{% for h in headlines %}
+{{ loop.index }}. **{{ h.title }}**  
+   {{ h.why }}  
+   _置信度: {{ h.confidence }}_ · 建议: {{ h.action }}
+{% else %}
+_无头版结论_
+{% endfor %}
+
+## Research State Changes
+
+{{ state_changes }}
+
+## 今日精读
+
+{% for p in featured_papers %}
+### {{ p.title }}
+- 决议: {{ p.verdict }}
+{% else %}
+_暂无精读条目（骨架占位）_
+{% endfor %}
+
+## 弱信号雷达
+
+{% for r in radar %}
+- {{ r }}
+{% else %}
+_无_
+{% endfor %}
+
+## Idea Watchlist
+
+{% for i in ideas %}
+- {{ i }}
+{% else %}
+_无状态变化_
+{% endfor %}
+
+## 今日动作
+
+{% for a in actions %}
+{{ loop.index }}. {{ a }}
+{% else %}
+暂不行动。
+{% endfor %}
+
+## 附录
+
+- 活跃项目: {{ projects | join(', ') if projects else '(none)' }}
+- 配置档案: {{ profile_name }}

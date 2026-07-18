@@ -1,0 +1,31 @@
+# Open questions across projects. New papers should attach here to earn headliner space.
+
+- question_id: Q-MAT-001
+  project_id: combinatorics_and_matroids
+  question: Can the final partition argument be unified across the remaining parameter range?
+  status: open
+  importance: high
+  blocking: true
+  last_reviewed: 2026-07-18
+  supporting_evidence: []
+  contradicting_evidence: []
+
+- question_id: Q-CV-014
+  project_id: structured_and_reliable_vision
+  question: Which internal signals predict net benefit of a self-challenge / counterevidence step?
+  status: open
+  importance: high
+  blocking: true
+  last_reviewed: 2026-07-18
+  supporting_evidence: []
+  contradicting_evidence: []
+
+- question_id: Q-AIM-001
+  project_id: ai_for_math
+  question: Which recent systems truly handle research-level math discovery rather than contest problems?
+  status: open
+  importance: high
+  blocking: false
+  last_reviewed: 2026-07-18
+  supporting_evidence: []
+  contradicting_evidence: []

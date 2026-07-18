@@ -1,0 +1,24 @@
+project_id: structured_and_reliable_vision
+title: When Should a Vision Model Challenge Itself?
+status: exploring
+channel: structured_and_reliable_vision
+
+core_question: >
+  How should a high-confidence vision model decide whether to enter a
+  counterevidence / self-challenge mode?
+
+current_hypotheses:
+  - confidence alone cannot identify challenge-worthy samples
+  - counterevidence has asymmetric benefit and harm
+
+constraints:
+  compute: single_consumer_gpu
+  avoid_large_scale_training: true
+  prefer_mechanistic_analysis: true
+
+known_failures:
+  - naive disconfirm routing harmed initially correct samples
+
+death_conditions:
+  - no signal improves net correction over calibrated confidence
+  - gain disappears across generator or backbone changes

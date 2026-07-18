@@ -1,0 +1,26 @@
+project_id: combinatorics_and_matroids
+title: Theta-family / matroid flat-count log-concavity
+status: proving
+channel: combinatorics_and_matroids
+
+core_question: >
+  Can the remaining parameter range be closed by a uniform structural proof?
+
+current_hypotheses:
+  - A uniform partition / injection argument may finish the remaining cases.
+
+constraints:
+  compute: low
+  prefer_structural_proof: true
+  avoid_finite_verification_as_final_proof: true
+
+known_failures: []
+
+death_conditions:
+  - requires an unproved inequality stronger than the main theorem
+  - reduces only to an exponential finite search
+
+preferred_methods:
+  - combinatorial injection
+  - generating functions
+  - coefficient inequalities

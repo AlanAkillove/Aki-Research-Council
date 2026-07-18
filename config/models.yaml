@@ -1,0 +1,22 @@
+# OpenAI-compatible endpoints. Override base_url per role or via OPENAI_BASE_URL.
+default_base_url: null
+
+embedding:
+  model: text-embedding-3-small
+  temperature: 0.0
+
+triage:
+  model: gpt-4o-mini
+  temperature: 0.1
+
+structured_analysis:
+  model: gpt-4o-mini
+  temperature: 0.2
+
+deep_review:
+  model: gpt-4o
+  temperature: 0.2
+
+math_analysis:
+  model: gpt-4o
+  temperature: 0.1

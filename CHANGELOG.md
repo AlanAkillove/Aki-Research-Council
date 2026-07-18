@@ -6,11 +6,12 @@
 
 ### Added
 
+- 项目骨架：`src/arc`、`config/`、`research_state/` 示例、Jinja2 日报模板、`arc` CLI
 - UI 设计系统（Claude 暖色编辑风）[`docs/product/05-ui-design.md`](docs/product/05-ui-design.md)
 
 ### Changed
 
-- （尚无运行时行为）
+- （尚无完整 ingest 管线）
 
 ### Fixed
 

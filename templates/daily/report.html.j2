@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ brand }} · {{ date }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../styles/tokens.css" />
+  <link rel="stylesheet" href="../styles/report.css" />
+  {# When serving from reports/daily/, styles are copied or inlined in a later step.
+     For skeleton smoke we also embed critical tokens so the file opens standalone. #}
+  <style>
+{% include 'styles/tokens.css' %}
+{% include 'styles/report.css' %}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <p class="brand">{{ brand }}</p>
+    <p class="meta">
+      {{ subtitle }} · {{ date }} · {{ mode }}
+      {% if partial %}<span class="badge partial">partial</span>{% endif %}
+    </p>
+
+    <h2>今日结论</h2>
+    {% for h in headlines %}
+    <div class="card">
+      <div class="headline-title"><span class="headline-num">{{ loop.index }}.</span>{{ h.title }}</div>
+      <p>{{ h.why }}</p>
+      <p class="muted">置信度 {{ h.confidence }} · 建议 {{ h.action }}</p>
+    </div>
+    {% else %}
+    <p class="muted">无头版结论</p>
+    {% endfor %}
+
+    <h2>Research State Changes</h2>
+    <div class="card">
+      <p>{{ state_changes }}</p>
+    </div>
+
+    <h2>今日动作</h2>
+    <ol class="actions">
+      {% for a in actions %}
+      <li>{{ a }}</li>
+      {% else %}
+      <li>暂不行动</li>
+      {% endfor %}
+    </ol>
+
+    <h2>附录</h2>
+    <div class="dark">
+      <div class="label">projects</div>
+      <div>{{ projects | join(', ') if projects else '(none)' }}</div>
+      <div class="label" style="margin-top:12px">profile</div>
+      <div>{{ profile_name }}</div>
+    </div>
+
+    <footer>ARC · evidence before generation · NO-GO is a first-class outcome</footer>
+  </main>
+</body>
+</html>

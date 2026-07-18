@@ -1,0 +1,38 @@
+:root {
+  /* ARC UI tokens — docs/product/05-ui-design.md */
+  --arc-primary: #cc785c;
+  --arc-primary-active: #a9583e;
+  --arc-primary-disabled: #e6dfd8;
+  --arc-ink: #141413;
+  --arc-body: #3d3d3a;
+  --arc-body-strong: #252523;
+  --arc-muted: #6c6a64;
+  --arc-muted-soft: #8e8b82;
+  --arc-hairline: #e6dfd8;
+  --arc-hairline-soft: #ebe6df;
+  --arc-canvas: #faf9f5;
+  --arc-surface-soft: #f5f0e8;
+  --arc-surface-card: #efe9de;
+  --arc-surface-cream-strong: #e8e0d2;
+  --arc-surface-dark: #181715;
+  --arc-surface-dark-elevated: #252320;
+  --arc-surface-dark-soft: #1f1e1b;
+  --arc-on-primary: #ffffff;
+  --arc-on-dark: #faf9f5;
+  --arc-on-dark-soft: #a09d96;
+  --arc-accent-teal: #5db8a6;
+  --arc-accent-amber: #e8a55a;
+  --arc-success: #5db872;
+  --arc-warning: #d4a017;
+  --arc-error: #c64545;
+
+  --arc-font-display: "Cormorant Garamond", "EB Garamond", Georgia, serif;
+  --arc-font-body: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --arc-font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --arc-radius-md: 8px;
+  --arc-radius-lg: 12px;
+  --arc-radius-xl: 16px;
+  --arc-radius-pill: 9999px;
+  --arc-max-width: 720px;
+}

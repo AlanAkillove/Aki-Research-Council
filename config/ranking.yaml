@@ -1,0 +1,22 @@
+daily_limits:
+  initial_candidates: 200
+  llm_screened: 30
+  fulltext_analyzed: 5
+  featured_papers: 3
+  new_ideas: 1
+  action_items: 3
+
+exploration_mix:
+  project_related: 0.70
+  adjacent_methods: 0.20
+  high_uncertainty: 0.10
+
+# Prior weights for composite_score; calibrated later from feedback.
+weights:
+  R: 0.25  # project relevance
+  L: 0.15  # leverage / transferability
+  E: 0.15  # evidence quality
+  F: 0.15  # feasibility
+  N: 0.10  # novelty signal
+  T: 0.10  # topic / trend
+  P: 0.20  # redundancy penalty

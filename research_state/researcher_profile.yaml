@@ -1,0 +1,27 @@
+name: Aki
+background:
+  - mathematics
+  - information_and_computing_science
+  - machine_learning
+  - computer_vision
+
+research_preferences:
+  theory_weight: high
+  mathematical_structure: high
+  engineering_workload: low
+  novelty_standard: strict
+
+compute:
+  gpu: consumer_single_gpu
+  multi_gpu: false
+
+avoid:
+  - projects requiring large-scale pretraining
+  - purely prompt-engineering contributions
+  - weak multi-agent wrappers
+  - results relying only on finite enumeration
+
+channels:
+  - ai_for_math
+  - structured_and_reliable_vision
+  - combinatorics_and_matroids

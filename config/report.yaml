@@ -1,0 +1,15 @@
+daily:
+  reading_minutes_target: 12
+  show_appendix: true
+  brand: ARC
+  subtitle: Aki Research Council
+
+weekly:
+  max_slides: 10
+  max_ideas_in_tournament: 3
+  max_validated_candidates: 1
+
+html:
+  theme: claude-warm-editorial
+  katex: true
+  tokens_css: styles/tokens.css

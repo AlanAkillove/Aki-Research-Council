@@ -5,16 +5,16 @@
 
 ## Now（进行中）
 
-- [ ] P1 骨架：`pyproject.toml` + `src/arc` 包结构 + CLI 入口占位
-- [ ] P1 配置：`config/sources.yaml` / `models.yaml` / `ranking.yaml`
-- [ ] P1 `research_state` 示例：profile + 一个项目 + 开放问题
+- [x] P1 骨架：`pyproject.toml` + `src/arc` 包结构 + CLI 入口占位
+- [x] P1 配置：`config/sources.yaml` / `models.yaml` / `ranking.yaml`
+- [x] P1 `research_state` 示例：profile + 项目 + 开放问题
 
 ## Next（P1）
 
 - [ ] arXiv 增量抓取 + SQLite 落库
 - [ ] 归一化与去重（DOI / arXiv / 标题指纹）
 - [ ] 两阶段筛选（硬过滤 → 多维 JSON 精排）
-- [ ] 每日 Markdown + HTML 渲染
+- [ ] 每日 Markdown + HTML 渲染（模板已有，接真实数据）
 - [ ] `feedback.jsonl` 写入路径
 - [ ] smoke：ingest → screen → report
 
