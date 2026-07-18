@@ -6,6 +6,10 @@
 
 ### Added
 
+- P4 最小验证协议：`VerificationProtocol` + `VerificationStep` schema
+- `arc verify generate|list|status` CLI 命令组
+- `generate_protocol()`: 从 Idea 自动生成可执行验证计划（步骤+预期+kill criteria）
+- EchoModelProvider fixture for `_ProtocolResponse`
 - 月度回顾报告：`templates/monthly/report.md.j2` + `arc monthly` CLI
 - 反馈校准：`calibrate_weights_from_feedback()`（正/负反馈 → 权重调整建议）
 - 探索配比审计：`audit_exploration_mix()`（项目相关/邻近/高不确定比例）

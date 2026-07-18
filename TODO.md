@@ -13,11 +13,12 @@
 - [x] 月度回顾报告（arc monthly）
 - [x] 反馈校准 & 权重敏感性（calibrate_weights_from_feedback）
 - [x] 探索配比审计（audit_exploration_mix + arc analyze）
+- [x] P4 最小验证协议（arc verify generate|list|status）
 
 ## Next
 
-- [ ] P3 完整性与稳定性提升
-- [ ] 文档完善
+- [ ] 文档完善 & 整体验收
+- [ ] P4 可选自动执行开关（默认 OFF）
 
 ## Later
 

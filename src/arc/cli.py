@@ -726,6 +726,87 @@ def analyze() -> None:
         typer.echo(f"  {audit.get('note', 'no data')}")
 
 
+# ---------------------------------------------------------------------------
+# arc verify (P4 — Minimal Verification Protocol)
+# ---------------------------------------------------------------------------
+
+_verify_app = typer.Typer(help="P4: Generate and manage verification protocols")
+app.add_typer(_verify_app, name="verify")
+
+
+@_verify_app.command("generate")
+def verify_generate(
+    idea_id: str = typer.Argument(..., help="Idea ID (IDEA-...)"),
+    echo_provider: bool = typer.Option(
+        True, "--echo/--no-echo", help="Use EchoModelProvider (offline)",
+    ),
+) -> None:
+    """Generate a verification protocol for an idea."""
+    ensure_runtime_dirs()
+    from arc.memory import list_ideas
+
+    ideas = list_ideas(limit=100)
+    match = [i for i in ideas if i.idea_id == idea_id]
+    if not match:
+        typer.secho(f"Idea not found: {idea_id}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    idea = match[0]
+
+    if echo_provider:
+        from arc.providers import EchoModelProvider
+        provider = EchoModelProvider()
+    else:
+        models = load_models_config()
+        from arc.providers.openai_compatible import OpenAICompatibleProvider
+        provider = OpenAICompatibleProvider(models.structured_analysis)
+
+    from arc.verify import generate_protocol as _generate_protocol
+
+    protocol = asyncio.run(_generate_protocol(
+        idea.idea_id, idea.title, idea.claim,
+        idea.stage.value, provider,
+    ))
+    typer.echo(f"Protocol: {protocol.protocol_id} [{protocol.status}]")
+    typer.echo(f"  Hypothesis: {protocol.hypothesis[:80]}")
+    for step in protocol.steps:
+        typer.echo(f"  Step {step.order}: {step.description}")
+        if step.command:
+            typer.echo(f"    Cmd: {step.command}")
+    typer.echo(f"  Kill criteria: {protocol.kill_criteria}")
+    typer.echo(f"  Minimum success: {protocol.minimum_success[:80]}")
+
+
+@_verify_app.command("list")
+def verify_list(
+    idea_id: str | None = typer.Option(None, "--idea", "-i", help="Filter by idea ID"),
+) -> None:
+    """List verification protocols."""
+    from arc.verify import list_protocols as _list_protocols
+
+    protos = _list_protocols(idea_id=idea_id)
+    if not protos:
+        typer.echo("No protocols found.")
+        return
+    for p in protos:
+        typer.echo(f"{p.protocol_id} [{p.status:8s}] {p.title[:60]}")
+
+
+@_verify_app.command("status")
+def verify_status(
+    protocol_id: str = typer.Argument(..., help="Protocol ID (VER-...)"),
+    status: str = typer.Argument(..., help="draft|active|passed|failed"),
+) -> None:
+    """Update protocol status."""
+    from arc.verify import update_protocol_status as _update_protocol_status
+
+    result = _update_protocol_status(protocol_id, status)
+    if result:
+        typer.echo(f"Protocol {protocol_id} -> {result.status}")
+    else:
+        typer.secho(f"Protocol not found: {protocol_id}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
 def main() -> None:
     """Console script entry (setuptools/uv)."""
     app()

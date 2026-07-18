@@ -187,6 +187,7 @@ class RunLog(BaseModel):
 FEEDBACK_FILE = "feedback.jsonl"
 CLAIMS_FILE = "claims.jsonl"
 IDEAS_FILE = "ideas.jsonl"
+VERIFICATION_FILE = "verifications.jsonl"
 
 
 class FeedbackEntry(BaseModel):
@@ -198,3 +199,31 @@ class FeedbackEntry(BaseModel):
     comment: str = ""
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     source: str = "cli"
+
+
+class VerificationStep(BaseModel):
+    """A single concrete step in a verification protocol."""
+
+    order: int
+    description: str
+    expected: str = ""
+    command: str = ""  # optional shell/python command hint
+
+
+class VerificationProtocol(BaseModel):
+    """Minimal verification protocol for an idea (P4).
+
+    Tech Spec §8.3 (Idea lifecycle) + P4: from Idea generate a concrete,
+    human-executable test plan.
+    """
+
+    protocol_id: str
+    idea_id: str
+    title: str
+    hypothesis: str = ""
+    steps: list[VerificationStep] = Field(default_factory=list)
+    expected_outcomes: list[str] = Field(default_factory=list)
+    kill_criteria: list[str] = Field(default_factory=list)
+    minimum_success: str = ""
+    status: str = "draft"  # draft | active | passed | failed
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
