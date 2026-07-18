@@ -81,3 +81,10 @@ def load_sources_config(path: Path | None = None) -> dict[str, Any]:
     load_env()
     cfg_path = path or (CONFIG_DIR / "sources.yaml")
     return read_yaml(cfg_path)
+
+
+def load_topics_config(path: Path | None = None) -> dict[str, Any]:
+    """Load topic/channel configuration."""
+    load_env()
+    cfg_path = path or (CONFIG_DIR / "topics.yaml")
+    return read_yaml(cfg_path)
