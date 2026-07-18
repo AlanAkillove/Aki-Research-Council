@@ -6,8 +6,15 @@
 
 ### Added
 
+- P2 证据系统：`EvidenceType` 枚举 + PaperStore evidence 表（SQLite CRUD）
+- Evidence Pack Builder：LLM 从论文摘要抽取结构化证据（定理/实验/主张/限制）
+- Claim Ledger：`claims.jsonl` append-only，write/list/approve（Chair 审批门禁）
+- 虚拟组会角色：Skeptic（批判评审）、Historian（前作检索+新颖性）、Liaison（项目映射）、Chair（决策+≤3 动作）
+- `arc evidence build` / `arc claim add|list|approve` / `arc council review` CLI 命令
+- `arc weekly` 周报骨架命令 + `templates/weekly/report.md.j2` 模板
+- EchoModelProvider 新增 5 个 schema fixtures（Evidence/Skeptic/Historian/Liaison/Chair）
 - 反馈系统：`FeedbackEntry` schema + `arc feedback add/list` CLI + append-only JSONL 存储
-- 全链路 smoke：`arc smoke` 覆盖 config/store/normalize/rank/PaperStore/feedback/report 7 个步骤
+- 全链路 smoke：`arc smoke` 覆盖 config/store/normalize/rank/evidence/council/feedback/report 9 个步骤
 - 日报真实数据接入：`build_daily_context`（ScreeningReport → 模板上下文）
 - 全链路管线：`run_daily_full`（ingest → normalize → screen → report）
 - `arc daily --no-skeleton` 全链路模式 + `--all` 强制重抓

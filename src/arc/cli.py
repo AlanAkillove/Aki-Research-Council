@@ -10,8 +10,15 @@ import typer
 
 from arc import __version__
 from arc.config import load_models_config, load_ranking_config, load_sources_config
+from arc.evidence import build_evidence_pack
 from arc.ingestion import ArxivClient, PaperStore
-from arc.memory import list_projects
+from arc.memory import (
+    approve_claim as _approve_claim,
+    list_claims as _list_claims,
+    list_projects,
+    load_researcher_profile,
+    write_claim as _write_claim,
+)
 from arc.memory import list_feedback as _list_feedback
 from arc.memory import write_feedback as _write_feedback
 from arc.normalization import run_normalization as normalize_papers
@@ -96,7 +103,7 @@ def daily(
 
 @app.command("smoke")
 def smoke() -> None:
-    """Offline smoke: config + store + normalize + rank + feedback + report."""
+    """Offline smoke: config + store + normalize + rank + evidence + council + feedback + report."""
     from arc.config import load_ranking_config
     from arc.normalization import pick_canonical_id, title_fingerprint
     from arc.providers import EchoModelProvider
@@ -161,7 +168,30 @@ def smoke() -> None:
     assert fetched is not None and fetched.title == paper.title
     store.close()
 
-    # 7. Skeleton report
+    # 7. Evidence store round-trip
+    from arc.schemas import Evidence, EvidenceType, SourceTier
+
+    store = PaperStore(DATA_DIR / "indexes")
+    ev = Evidence(
+        id="EV-smoke",
+        paper_id="arxiv:2607.smoke",
+        content="Smoke evidence item.",
+        evidence_type=EvidenceType.CLAIM,
+    )
+    store.upsert_evidence(ev)
+    fetched_ev = store.get_evidence("EV-smoke")
+    assert fetched_ev is not None and fetched_ev.content == ev.content
+    store.close()
+
+    # 8. Council role schema round-trip
+    from arc.council.schemas import ChairOutput, SkepticOutput
+
+    so = SkepticOutput(verdict="sound", attack_points=["Minor issue"])
+    assert so.verdict == "sound"
+    co = ChairOutput(verdict="READ", confidence=0.7)
+    assert co.verdict == "READ"
+
+    # 9. Skeleton report
     run = run_daily_skeleton()
     assert run.status == "partial"
 
@@ -321,6 +351,199 @@ def feedback_list(
         typer.echo(f"[{ts}] {e.label.value:12s}  {e.paper_id}")
         if e.comment:
             typer.echo(f"          comment: {e.comment}")
+
+
+# ---------------------------------------------------------------------------
+# arc evidence
+# ---------------------------------------------------------------------------
+
+_evidence_app = typer.Typer(help="Build and inspect evidence packs")
+app.add_typer(_evidence_app, name="evidence")
+
+
+@_evidence_app.command("build")
+def evidence_build(
+    paper_id: str = typer.Argument(..., help="Paper canonical_id"),
+    echo_provider: bool = typer.Option(
+        True, "--echo/--no-echo", help="Use EchoModelProvider (offline)",
+    ),
+) -> None:
+    """Extract evidence from a paper's abstract via LLM."""
+    ensure_runtime_dirs()
+    store = PaperStore(DATA_DIR / "indexes")
+    paper = store.get_paper(paper_id)
+    if not paper:
+        typer.secho(f"Paper not found: {paper_id}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    if echo_provider:
+        from arc.providers import EchoModelProvider
+        provider = EchoModelProvider()
+    else:
+        models = load_models_config()
+        from arc.providers.openai_compatible import OpenAICompatibleProvider
+        provider = OpenAICompatibleProvider(models.structured_analysis)
+    ev_list = asyncio.run(build_evidence_pack(store, paper, provider))
+    typer.echo(f"Evidence pack built: {len(ev_list)} items for {paper_id}")
+    for ev in ev_list:
+        typer.echo(f"  {ev.id} [{ev.evidence_type.value}] {ev.content[:80]}")
+    store.close()
+
+
+# ---------------------------------------------------------------------------
+# arc claim
+# ---------------------------------------------------------------------------
+
+_claim_app = typer.Typer(help="Manage the Claim Ledger")
+app.add_typer(_claim_app, name="claim")
+
+
+@_claim_app.command("add")
+def claim_add(
+    paper_id: str = typer.Argument(..., help="Paper canonical_id"),
+    text: str = typer.Argument(..., help="Claim text"),
+    type: str = typer.Option("inference", "--type", "-t",
+        help="Claim type: fact|author_claim|inference|hypothesis|recommendation"),
+    generated_by: str = typer.Option("cli", "--by", help="Generator role"),
+) -> None:
+    """Add a claim to the ledger (append-only)."""
+    claim = _write_claim(paper_id, text, type, generated_by=generated_by)
+    typer.echo(f"Claim recorded: {claim.claim_id}")
+
+
+@_claim_app.command("list")
+def claim_list(
+    paper_id: str | None = typer.Option(None, "--paper", "-p", help="Filter by paper"),
+    limit: int = typer.Option(20, "--limit", "-n"),
+) -> None:
+    """List claims in the ledger."""
+    claims = _list_claims(paper_id=paper_id, limit=limit)
+    if not claims:
+        typer.echo("No claims found.")
+        return
+    for c in claims:
+        approved = "✓" if c.approved_by else "○"
+        typer.echo(f"{approved} {c.claim_id} [{c.type.value:16s}] {c.text[:80]}")
+
+
+@_claim_app.command("approve")
+def claim_approve(
+    claim_id: str = typer.Argument(..., help="Claim ID (CLM-...)"),
+) -> None:
+    """Approve a claim as Chair (sets approved_by)."""
+    result = _approve_claim(claim_id)
+    if result:
+        typer.echo(f"Claim {claim_id} approved by {result.approved_by}")
+    else:
+        typer.secho(f"Claim not found or already approved: {claim_id}", fg=typer.colors.RED)
+
+
+# ---------------------------------------------------------------------------
+# arc weekly
+# ---------------------------------------------------------------------------
+
+
+@app.command("weekly")
+def weekly(
+    week: str | None = typer.Option(None, "--week", help="YYYY-Www (default: current)"),
+) -> None:
+    """Generate a skeleton weekly report."""
+    ensure_runtime_dirs()
+    from datetime import date as dt_date
+
+    week_str = week or dt_date.today().strftime("%Y-W%W")
+    from arc.reporting import write_weekly_report
+
+    profile = load_researcher_profile()
+    projects = list_projects()
+    context = {
+        "date": week_str,
+        "mode": "weekly_skeleton",
+        "brand": "ARC",
+        "subtitle": "Aki Research Council",
+        "profile_name": profile.get("name", "researcher"),
+        "projects": projects,
+        "headlines": [],
+        "featured_papers": [],
+        "council_outputs": {},
+        "decisions": [],
+        "actions": ["周报管线将在 P2 完整实现后填充数据。"],
+        "partial": True,
+    }
+    path = write_weekly_report(week_str, context)
+    typer.echo(f"Wrote weekly report: {path}")
+
+
+# ---------------------------------------------------------------------------
+# arc council
+# ---------------------------------------------------------------------------
+
+_council_app = typer.Typer(help="Run virtual council on papers")
+app.add_typer(_council_app, name="council")
+
+
+@_council_app.command("review")
+def council_review(
+    paper_id: str = typer.Argument(..., help="Paper canonical_id"),
+    echo_provider: bool = typer.Option(
+        True, "--echo/--no-echo", help="Use EchoModelProvider (offline)",
+    ),
+) -> None:
+    """Run full council: Evidence → Skeptic → Historian → Liaison → Chair."""
+    ensure_runtime_dirs()
+    store = PaperStore(DATA_DIR / "indexes")
+    paper = store.get_paper(paper_id)
+    if not paper:
+        typer.secho(f"Paper not found: {paper_id}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    if echo_provider:
+        from arc.providers import EchoModelProvider
+        provider = EchoModelProvider()
+    else:
+        models = load_models_config()
+        from arc.providers.openai_compatible import OpenAICompatibleProvider
+        provider = OpenAICompatibleProvider(models.deep_review)
+
+    from arc.council import (
+        run_chair,
+        run_full_council,
+        run_historian,
+        run_liaison,
+        run_skeptic,
+    )
+
+    async def _run() -> dict:
+        # 1. Evidence
+        ev_list = await build_evidence_pack(store, paper, provider)
+        # 2. Skeptic
+        skeptic = await run_skeptic(store, paper, provider)
+        # 3. Historian
+        historian = await run_historian(store, paper, provider)
+        # 4. Liaison
+        liaison = await run_liaison(paper, provider)
+        # 5. Chair
+        chair = await run_full_council(paper, provider, skeptic, historian, liaison)
+        return {
+            "evidence_count": len(ev_list),
+            "skeptic_verdict": skeptic.verdict,
+            "skeptic_attack_points": len(skeptic.attack_points),
+            "historian_novelty": historian.novelty_label[:40],
+            "liaison_projects": liaison.relevant_projects,
+            "chair_verdict": chair.verdict,
+            "chair_confidence": chair.confidence,
+            "chair_actions": chair.actions,
+        }
+
+    result = asyncio.run(_run())
+    typer.echo(f"Council review for {paper_id}:")
+    typer.echo(f"  Evidence: {result['evidence_count']} items")
+    typer.echo(f"  Skeptic: {result['skeptic_verdict']} ({result['skeptic_attack_points']} attack points)")
+    typer.echo(f"  Historian: {result['historian_novelty']}")
+    typer.echo(f"  Liaison: projects={result['liaison_projects']}")
+    typer.echo(f"  Chair: {result['chair_verdict']} (conf={result['chair_confidence']})")
+    for a in result['chair_actions']:
+        typer.echo(f"    action: {a}")
+    store.close()
 
 
 def main() -> None:

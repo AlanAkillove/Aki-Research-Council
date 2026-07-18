@@ -35,3 +35,20 @@ def write_daily_reports(date_str: str, context: dict[str, Any]) -> tuple[Path, P
     md_path.write_text(render_daily_markdown(context), encoding="utf-8")
     html_path.write_text(render_daily_html(context), encoding="utf-8")
     return md_path, html_path
+
+
+# ---------------------------------------------------------------------------
+# Weekly report
+# ---------------------------------------------------------------------------
+
+
+def render_weekly_markdown(context: dict[str, Any]) -> str:
+    return _env().get_template("weekly/report.md.j2").render(**context)
+
+
+def write_weekly_report(week_str: str, context: dict[str, Any]) -> Path:
+    out_dir = REPORTS_DIR / "weekly"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    md_path = out_dir / f"{week_str}.md"
+    md_path.write_text(render_weekly_markdown(context), encoding="utf-8")
+    return md_path

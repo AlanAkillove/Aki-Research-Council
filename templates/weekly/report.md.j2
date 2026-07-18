@@ -1,0 +1,56 @@
+# {{ brand }} — {{ subtitle }}
+
+**Week:** {{ date }} · **Mode:** {{ mode }}{% if partial %} · `partial`{% endif %}
+
+## 本周概览
+
+{% for h in headlines %}
+{{ loop.index }}. **{{ h.title }}** — {{ h.why }}
+{% else %}
+_本周无显著新信号_
+{% endfor %}
+
+## 精读与 Evidence
+
+{% for p in featured_papers %}
+### {{ p.title }}
+- **决议:** {{ p.verdict }} | **评分:** {{ p.score }}
+- **作者:** {{ p.authors }}
+{% if p.source %} - **来源:** {{ p.source }}{% endif %}
+- **Evidence 数:** {{ p.evidence_count | default(0) }}
+{% else %}
+_本周精读条目将在 P2 pipeline 运行后显示_
+{% endfor %}
+
+## 角色评审摘要
+
+{% if council_outputs %}
+{% for role, output in council_outputs.items() %}
+### {{ role }}
+- {{ output }}
+{% endfor %}
+{% else %}
+_评审将在 Council pipeline 运行后填充_
+{% endif %}
+
+## Chair 决议
+
+{% if decisions %}
+{% for d in decisions %}
+- **{{ d.verdict }}:** {{ d.rationale }}
+{% endfor %}
+{% else %}
+_待定_
+{% endif %}
+
+## 下周任务
+
+{% for a in actions %}
+{{ loop.index }}. {{ a }}
+{% else %}
+暂不行动。
+{% endfor %}
+
+---
+
+_ARC · 周报 · {{ date }}_

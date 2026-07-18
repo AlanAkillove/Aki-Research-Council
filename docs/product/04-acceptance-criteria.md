@@ -54,9 +54,9 @@ P1 全部 P1.2 通过后，才启动 P2 全文证据与多角色评审。
 
 ### P2.1 功能
 
-- [ ] 对 ≤5 篇/日进行全文/TeX 证据抽取，生成 Evidence Pack
-- [ ] Historian / Skeptic / Liaison 结构化输出并入库
-- [ ] Claim Ledger 可追加；写入正式 State 须 `approved_by: chair`
+- [x] 对 ≤5 篇/日进行全文/TeX 证据抽取，生成 Evidence Pack
+- [x] Historian / Skeptic / Liaison 结构化输出并入库
+- [x] Claim Ledger 可追加；写入正式 State 须 `approved_by: chair`
 - [ ] 日报含 **Research State Changes** 栏目
 - [ ] 能关联到具体 `project_id` / `question_id`
 - [ ] 周会 Markdown 纪要可生成

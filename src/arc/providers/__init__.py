@@ -20,7 +20,8 @@ class EchoModelProvider(ModelProvider):
     """Deterministic stub for offline smoke tests — does not call the network."""
 
     async def generate(self, task: str, schema: type[T], context: dict) -> T:
-        if schema.__name__ == "ScreenScores":
+        name = schema.__name__
+        if name == "ScreenScores":
             return schema.model_validate(  # type: ignore[return-value]
                 {
                     "topic_relevance": 0.5,
@@ -33,4 +34,41 @@ class EchoModelProvider(ModelProvider):
                     "recommended_action": "watch",
                 }
             )
-        raise NotImplementedError(f"EchoModelProvider has no fixture for {schema.__name__} ({task})")
+        if name == "_EvidenceResponse":
+            return schema.model_validate(  # type: ignore[return-value]
+                {
+                    "evidence": [
+                        {
+                            "content": "The paper claims a novel approach.",
+                            "evidence_type": "claim",
+                            "confidence": 0.7,
+                        },
+                        {
+                            "content": "Experimental results show improvement.",
+                            "evidence_type": "experiment",
+                            "confidence": 0.8,
+                        },
+                    ]
+                }
+            )
+        if name == "SkepticOutput":
+            return schema.model_validate({"verdict": "sound", "attack_points": []})  # type: ignore[return-value]
+        if name == "HistorianOutput":
+            return schema.model_validate({  # type: ignore[return-value]
+                "novelty_label": "未发现高度相似工作",
+                "context_summary": "No closely related prior work found.",
+            })
+        if name == "LiaisonOutput":
+            return schema.model_validate({  # type: ignore[return-value]
+                "relevant_projects": ["ai_for_math"],
+                "impact": "supports",
+                "rationale": "The method applies to mathematical reasoning.",
+            })
+        if name == "ChairOutput":
+            return schema.model_validate({  # type: ignore[return-value]
+                "verdict": "WATCH",
+                "confidence": 0.6,
+                "rationale": ["Interesting but needs more evidence."],
+                "actions": ["Monitor future versions."],
+            })
+        raise NotImplementedError(f"EchoModelProvider has no fixture for {name} ({task})")
