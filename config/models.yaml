@@ -7,17 +7,17 @@ embedding:
   temperature: 0.0
 
 triage:
-  model: deepseek-v4-flash
+  model: deepseek-chat
   temperature: 0.1
 
 structured_analysis:
-  model: deepseek-v4-pro
+  model: deepseek-chat
   temperature: 0.2
 
 deep_review:
-  model: deepseek-v4-pro
+  model: deepseek-reasoner
   temperature: 0.2
 
 math_analysis:
-  model: deepseek-v4-pro
+  model: deepseek-reasoner
   temperature: 0.1
