@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from arc.schemas import Paper
+from arc.schemas import Paper, Evidence, EvidenceType, SourceTier
 
 DB_FILENAME = "arc.db"
 
@@ -86,6 +86,21 @@ class PaperStore:
                 cursor_value TEXT NOT NULL,
                 fetched_at   TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS evidence (
+                id               TEXT PRIMARY KEY,
+                paper_id         TEXT NOT NULL,
+                content          TEXT NOT NULL,
+                evidence_type    TEXT NOT NULL DEFAULT 'other',
+                source_tier      TEXT NOT NULL DEFAULT 'A',
+                extraction_method TEXT NOT NULL DEFAULT 'api',
+                confidence       REAL NOT NULL DEFAULT 0.8,
+                location         TEXT NOT NULL DEFAULT '{}',
+                created_at       TEXT NOT NULL,
+                FOREIGN KEY (paper_id) REFERENCES papers(canonical_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_evidence_paper
+                ON evidence(paper_id);
         """)
 
     # ------------------------------------------------------------------
@@ -217,6 +232,77 @@ class PaperStore:
             " ORDER BY source"
         ).fetchall()
         return [dict(r) for r in rows]
+
+    # ------------------------------------------------------------------
+    # Evidence CRUD
+    # ------------------------------------------------------------------
+
+    def upsert_evidence(self, evidence: Evidence) -> str:
+        """Insert or update an evidence record. Returns evidence id."""
+        now = datetime.now(timezone.utc).isoformat()
+        row = {
+            "id": evidence.id,
+            "paper_id": evidence.paper_id,
+            "content": evidence.content,
+            "evidence_type": evidence.evidence_type.value,
+            "source_tier": evidence.source_tier.value,
+            "extraction_method": evidence.extraction_method,
+            "confidence": evidence.confidence,
+            "location": json.dumps(evidence.location, ensure_ascii=False),
+            "created_at": now,
+        }
+        self.conn.execute(
+            """INSERT INTO evidence (id, paper_id, content, evidence_type,
+                source_tier, extraction_method, confidence, location, created_at)
+               VALUES (:id, :paper_id, :content, :evidence_type,
+                :source_tier, :extraction_method, :confidence, :location, :created_at)
+               ON CONFLICT(id) DO UPDATE SET
+                content = excluded.content,
+                evidence_type = excluded.evidence_type,
+                confidence = excluded.confidence,
+                location = excluded.location""",
+            row,
+        )
+        self.conn.commit()
+        return evidence.id
+
+    def get_evidence(self, evidence_id: str) -> Evidence | None:
+        row = self.conn.execute(
+            "SELECT * FROM evidence WHERE id = ?", (evidence_id,)
+        ).fetchone()
+        return self._row_to_evidence(row) if row else None
+
+    def get_evidence_by_paper(self, paper_id: str) -> list[Evidence]:
+        rows = self.conn.execute(
+            "SELECT * FROM evidence WHERE paper_id = ? ORDER BY created_at",
+            (paper_id,),
+        ).fetchall()
+        return [self._row_to_evidence(r) for r in rows]
+
+    def count_evidence(self, paper_id: str | None = None) -> int:
+        if paper_id:
+            row = self.conn.execute(
+                "SELECT COUNT(*) AS cnt FROM evidence WHERE paper_id = ?",
+                (paper_id,),
+            ).fetchone()
+        else:
+            row = self.conn.execute(
+                "SELECT COUNT(*) AS cnt FROM evidence"
+            ).fetchone()
+        return row["cnt"] if row else 0
+
+    def _row_to_evidence(self, row: sqlite3.Row) -> Evidence:
+        return Evidence(
+            id=row["id"],
+            paper_id=row["paper_id"],
+            content=row["content"],
+            evidence_type=EvidenceType(row["evidence_type"]),
+            source_tier=SourceTier(row["source_tier"]),
+            extraction_method=row["extraction_method"],
+            confidence=row["confidence"],
+            location=json.loads(row["location"]),
+            created_at=datetime.fromisoformat(row["created_at"]),
+        )
 
     # ------------------------------------------------------------------
     # Serialisation helpers

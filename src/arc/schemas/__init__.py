@@ -53,6 +53,17 @@ class SourceTier(StrEnum):
     D = "D"
 
 
+class EvidenceType(StrEnum):
+    THEOREM = "theorem"
+    EXPERIMENT = "experiment"
+    ABLATION = "ablation"
+    REVIEW = "review"
+    CODE = "code"
+    CLAIM = "claim"
+    LIMITATION = "limitation"
+    OTHER = "other"
+
+
 class FeedbackLabel(StrEnum):
     """Feedback taxonomy from Tech Spec §10."""
 
@@ -99,11 +110,12 @@ class Evidence(BaseModel):
     id: str
     paper_id: str
     content: str
-    evidence_type: str = "other"
+    evidence_type: EvidenceType = EvidenceType.OTHER
     source_tier: SourceTier = SourceTier.A
     extraction_method: str = "api"
     confidence: float = Field(ge=0.0, le=1.0, default=0.8)
     location: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class Claim(BaseModel):
@@ -172,6 +184,7 @@ class RunLog(BaseModel):
 
 
 FEEDBACK_FILE = "feedback.jsonl"
+CLAIMS_FILE = "claims.jsonl"
 
 
 class FeedbackEntry(BaseModel):
