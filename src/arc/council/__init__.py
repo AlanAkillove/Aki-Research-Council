@@ -10,6 +10,7 @@ from arc.council.schemas import (
     SkepticOutput,
 )
 from arc.council.skeptic import run_skeptic
+from arc.council.tournament import run_tournament
 
 __all__ = [
     "run_skeptic",
@@ -17,6 +18,7 @@ __all__ = [
     "run_liaison",
     "run_chair",
     "run_full_council",
+    "run_tournament",
     "SkepticOutput",
     "HistorianOutput",
     "LiaisonOutput",

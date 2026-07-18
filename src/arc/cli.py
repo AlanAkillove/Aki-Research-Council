@@ -576,6 +576,7 @@ def council_review(
         run_historian,
         run_liaison,
         run_skeptic,
+        run_tournament,
     )
 
     async def _run() -> dict:
@@ -610,6 +611,49 @@ def council_review(
     for a in result['chair_actions']:
         typer.echo(f"    action: {a}")
     store.close()
+
+
+@_council_app.command("tournament")
+def council_tournament(
+    max_ideas: int = typer.Option(5, "--max", "-n", help="Max ideas to evaluate"),
+    echo_provider: bool = typer.Option(
+        True, "--echo/--no-echo", help="Use EchoModelProvider (offline)",
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Score but don't promote winner",
+    ),
+) -> None:
+    """Run idea tournament: Skeptic + Feasibility evaluation."""
+    ensure_runtime_dirs()
+    from arc.council import run_tournament
+
+    if echo_provider:
+        from arc.providers import EchoModelProvider
+        provider = EchoModelProvider()
+    else:
+        models = load_models_config()
+        from arc.providers.openai_compatible import OpenAICompatibleProvider
+        provider = OpenAICompatibleProvider(models.structured_analysis)
+
+    result = asyncio.run(run_tournament(provider, max_ideas=max_ideas, auto_promote=not dry_run))
+
+    if not result.entries:
+        typer.echo("No ideas to evaluate. Add ideas with 'arc idea add' first.")
+        return
+
+    typer.echo(f"Tournament: {len(result.entries)} ideas evaluated")
+    for e in result.entries:
+        marker = "*" if e.idea_id == result.winner_id else " "
+        typer.echo(
+            f"{marker} {e.idea_id[:20]:20s} {e.composite:.3f}  "
+            f"skp={e.skeptic_score:.2f} fea={e.feasibility_score:.2f}  "
+            f"{e.title[:60]}"
+        )
+    if result.winner_id:
+        typer.echo(f"Winner: {result.winner_id} -> {result.advanced_to}")
+        typer.echo(f"Reason: {result.winner_reason}")
+    else:
+        typer.echo("No winner selected (all ideas had skeptic_score <= 0.3)")
 
 
 def main() -> None:

@@ -8,6 +8,7 @@
 - [x] P1 全部完成
 - [x] P2 证据/Claim/Council + 验收
 - [x] P3 Idea 生命周期（ideas.jsonl + CLI + 状态机）
+- [x] P3 想法锦标赛（Generation / Skeptic / Feasibility + 自动晋升）
 - [x] 周会 PPTX（python-pptx + arc weekly --pptx）
 
 ## Next

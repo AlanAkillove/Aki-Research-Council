@@ -6,6 +6,9 @@
 
 ### Added
 
+- P3 想法锦标赛：`council/tournament.py`（Skeptic + Feasibility 双维度 LLM 评估，自动晋升）
+- `arc council tournament` CLI 命令（`--echo/--no-echo` 离线/在线模式，`--dry-run` 预览）
+- 状态机自动路径：signal→hypothesis→candidate→validated_candidate（自动走完中间阶段）
 - P3 Idea 生命周期：`ideas.jsonl` append-only，write/list/transition（含状态机验证）
 - `arc idea add|list|transition` CLI 命令
 - 周会 PPTX 生成：`python-pptx`，`arc weekly --pptx`（深色主题标题页 + 概览 + 任务）

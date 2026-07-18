@@ -71,4 +71,13 @@ class EchoModelProvider(ModelProvider):
                 "rationale": ["Interesting but needs more evidence."],
                 "actions": ["Monitor future versions."],
             })
+        if name == "_SkepticScore":
+            return schema.model_validate({"score": 0.7, "weakness": "Limited empirical validation"})  # type: ignore[return-value]
+        if name == "_FeasibilityScore":
+            return schema.model_validate({"score": 0.8, "notes": "Single GPU sufficient"})  # type: ignore[return-value]
+        if name == "TournamentOutput":
+            return schema.model_validate({  # type: ignore[return-value]
+                "entries": [{"idea_id": "IDEA-echo", "title": "Echo Idea", "claim": "Test", "composite": 0.75}],
+                "winner_id": "IDEA-echo",
+            })
         raise NotImplementedError(f"EchoModelProvider has no fixture for {name} ({task})")
