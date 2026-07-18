@@ -6,6 +6,11 @@
 
 ### Added
 
+- 日报真实数据接入：`build_daily_context`（ScreeningReport → 模板上下文）
+- 全链路管线：`run_daily_full`（ingest → normalize → screen → report）
+- `arc daily --no-skeleton` 全链路模式 + `--all` 强制重抓
+- HTML 模板新增「今日精读 / 弱信号雷达」栏目
+- arXiv 客户端：自动重试（指数退避，应对 429/5xx）
 - 归一化管线：title_fingerprint dedup、check_dedup、run_normalization（metadata_only → NORMALIZED）
 - 两阶段筛选：Stage 1 硬过滤（category/topic/negative keywords） + Stage 2 LLM 多维评分 + composite_score 排名
 - `arc ingest normalize` / `arc ingest screen` CLI 命令

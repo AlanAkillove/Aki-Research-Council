@@ -12,10 +12,10 @@
 - [x] `arc ingest arxiv` / `arc ingest status` CLI 命令
 - [x] 归一化与去重管线（指纹 dedup、状态转换）
 - [x] 两阶段筛选（硬过滤 + LLM 多维评分 + composite_score 排名）
+- [x] 日报真实数据接入（build_daily_context + run_daily_full）
 
 ## Next（P1）
 
-- [ ] 每日 Markdown + HTML 渲染（接入真实论文数据）
 - [ ] `feedback.jsonl` 写入路径
 - [ ] smoke：ingest → normalize → screen → report 全链路
 

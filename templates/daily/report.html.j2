@@ -40,6 +40,33 @@
       <p>{{ state_changes }}</p>
     </div>
 
+    <h2>今日精读</h2>
+    {% for p in featured_papers %}
+    <div class="card">
+      <div class="headline-title">{{ p.title }}</div>
+      <p class="muted">
+        {{ p.authors }}
+        {% if p.source %}&middot; <a href="{{ p.source }}">source</a>{% endif %}
+      </p>
+      <p class="muted">
+        评分 {{ p.score }} · 决议: {{ p.verdict }}
+      </p>
+    </div>
+    {% else %}
+    <p class="muted">暂无精读条目</p>
+    {% endfor %}
+
+    <h2>弱信号雷达</h2>
+    <div class="card">
+      <ul style="margin:0;padding-left:1.25rem">
+      {% for r in radar %}
+        <li style="margin:4px 0">{{ r }}</li>
+      {% else %}
+        <li class="muted">无</li>
+      {% endfor %}
+      </ul>
+    </div>
+
     <h2>今日动作</h2>
     <ol class="actions">
       {% for a in actions %}

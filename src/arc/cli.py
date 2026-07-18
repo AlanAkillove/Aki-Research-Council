@@ -14,7 +14,7 @@ from arc.ingestion import ArxivClient, PaperStore
 from arc.memory import list_projects
 from arc.normalization import run_normalization as normalize_papers
 from arc.paths import DATA_DIR, REPO_ROOT, ensure_runtime_dirs, load_env
-from arc.pipeline import run_daily_skeleton, run_normalize_step, run_screening_step
+from arc.pipeline import run_daily_full, run_daily_skeleton, run_normalize_step, run_screening_step
 
 app = typer.Typer(
     name="arc",
@@ -63,16 +63,32 @@ def daily(
     skeleton: bool = typer.Option(
         True,
         "--skeleton/--no-skeleton",
-        help="Skeleton mode until ingest is implemented",
+        help="Skeleton mode vs full ingest→normalize→screen→report pipeline",
+    ),
+    force_all: bool = typer.Option(
+        False,
+        "--all",
+        help="Force re-fetch all arXiv categories (only with --no-skeleton)",
     ),
 ) -> None:
-    """Run daily brief pipeline (skeleton until ingest lands)."""
+    """Run daily brief pipeline.
+
+    Default (--skeleton) generates a placeholder report with no network calls.
+    Use --no-skeleton to run the full pipeline: ingest → normalize → screen → report.
+    """
     run_day = date.fromisoformat(day) if day else date.today()
-    if not skeleton:
-        typer.secho("Full daily pipeline not implemented yet; use --skeleton", fg=typer.colors.RED)
-        raise typer.Exit(code=2)
-    run = run_daily_skeleton(run_day)
+    if skeleton:
+        run = run_daily_skeleton(run_day)
+        typer.echo(f"run_id={run.run_id} status={run.status} mode={run.mode}")
+        typer.echo(f"wrote reports/daily/{run_day.isoformat()}.md|.html")
+        return
+
+    typer.secho("Full daily pipeline: ingest → normalize → screen → report", fg=typer.colors.GREEN)
+    run = asyncio.run(run_daily_full(run_day, force_ingest_all=force_all))
     typer.echo(f"run_id={run.run_id} status={run.status} mode={run.mode}")
+    if run.failures:
+        for f in run.failures:
+            typer.secho(f"  failure: {f}", fg=typer.colors.RED)
     typer.echo(f"wrote reports/daily/{run_day.isoformat()}.md|.html")
 
 

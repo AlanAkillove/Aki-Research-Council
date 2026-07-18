@@ -228,3 +228,25 @@ def test_composite_score_default_weights() -> None:
         0.25 * 0.9 + 0.15 * 0.3 + 0.15 * 0.5 + 0.15 * 0.7 + 0.10 * 0.6 + 0.10 * 0.8 - 0.20 * 0.1
     )
     assert abs(s - expected) < 1e-10
+
+
+# ---------------------------------------------------------------------------
+# Daily context builder
+# ---------------------------------------------------------------------------
+
+
+def test_build_daily_context_no_candidates():
+    """Verify context builder produces valid output with empty report."""
+    from datetime import date
+    from arc.ranking import ScreeningReport
+    from arc.pipeline import build_daily_context
+
+    report = ScreeningReport(stage1_passed=0, stage2_screened=0, featured=0)
+    ctx = build_daily_context(date(2026, 7, 18), report)
+
+    assert ctx["date"] == "2026-07-18"
+    assert ctx["headlines"][0]["title"] == "今日没有显著新信号"
+    assert "没有足以改变" in ctx["state_changes"]
+    assert ctx["featured_papers"] == []
+    assert ctx["actions"] == ["继续监测 arXiv 新论文。"]
+    assert ctx["partial"] is False
