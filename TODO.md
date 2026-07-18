@@ -13,11 +13,12 @@
 - [x] 归一化与去重管线（指纹 dedup、状态转换）
 - [x] 两阶段筛选（硬过滤 + LLM 多维评分 + composite_score 排名）
 - [x] 日报真实数据接入（build_daily_context + run_daily_full）
+- [x] feedback.jsonl 写入路径
+- [x] 全链路 smoke（arc smoke 覆盖 7 个步骤）
 
 ## Next（P1）
 
-- [ ] `feedback.jsonl` 写入路径
-- [ ] smoke：ingest → normalize → screen → report 全链路
+_所有 P1 任务已完成，可进入 P2 阶段验收。_
 
 ## Later
 

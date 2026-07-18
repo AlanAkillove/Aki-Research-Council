@@ -6,6 +6,8 @@
 
 ### Added
 
+- 反馈系统：`FeedbackEntry` schema + `arc feedback add/list` CLI + append-only JSONL 存储
+- 全链路 smoke：`arc smoke` 覆盖 config/store/normalize/rank/PaperStore/feedback/report 7 个步骤
 - 日报真实数据接入：`build_daily_context`（ScreeningReport → 模板上下文）
 - 全链路管线：`run_daily_full`（ingest → normalize → screen → report）
 - `arc daily --no-skeleton` 全链路模式 + `--all` 强制重抓
