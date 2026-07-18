@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import date
 from typing import Optional
 
@@ -9,8 +10,9 @@ import typer
 
 from arc import __version__
 from arc.config import load_models_config, load_ranking_config, load_sources_config
+from arc.ingestion import ArxivClient, PaperStore
 from arc.memory import list_projects
-from arc.paths import REPO_ROOT, ensure_runtime_dirs, load_env
+from arc.paths import DATA_DIR, REPO_ROOT, ensure_runtime_dirs, load_env
 from arc.pipeline import run_daily_skeleton
 
 app = typer.Typer(
@@ -18,6 +20,9 @@ app = typer.Typer(
     help="ARC — Aki Research Council",
     no_args_is_help=True,
 )
+
+_ingest_app = typer.Typer(help="Ingest papers from external sources")
+app.add_typer(_ingest_app, name="ingest")
 
 
 @app.callback()
@@ -93,6 +98,57 @@ def smoke() -> None:
     run = run_daily_skeleton(date.today())
     assert run.status == "partial"
     typer.echo("smoke: ok")
+
+
+@_ingest_app.command("arxiv")
+def ingest_arxiv(
+    all_categories: bool = typer.Option(
+        False,
+        "--all",
+        help="Force re-fetch all categories, ignoring cursors",
+    ),
+    max_results: int = typer.Option(
+        200,
+        "--max",
+        help="Max results per category",
+    ),
+) -> None:
+    """Fetch papers from arXiv and store locally."""
+    ensure_runtime_dirs()
+    store = PaperStore(DATA_DIR / "indexes")
+    client = ArxivClient(store)
+    try:
+        results = asyncio.run(
+            client.ingest_all_categories(
+                max_results=max_results,
+                force_all=all_categories,
+            )
+        )
+        total_new = sum(v[0] for v in results.values())
+        total_fetched = sum(v[1] for v in results.values())
+        typer.echo(f"arXiv ingest complete: {total_new} new / {total_fetched} fetched")
+        for cat, (n, t) in sorted(results.items()):
+            if t > 0:
+                typer.echo(f"  {cat}: {n} new / {t} fetched")
+    finally:
+        asyncio.run(client.close())
+
+
+@_ingest_app.command("status")
+def ingest_status() -> None:
+    """Show paper store statistics."""
+    ensure_runtime_dirs()
+    store = PaperStore(DATA_DIR / "indexes")
+    total = store.count_papers()
+    typer.echo(f"Papers in store: {total}")
+    cursors = store.list_cursors()
+    if cursors:
+        typer.echo("Source cursors:")
+        for c in cursors:
+            typer.echo(f"  {c['source']}: {c['cursor_value']} (fetched {c['fetched_at']})")
+    else:
+        typer.echo("Source cursors: (none)")
+    store.close()
 
 
 def main() -> None:
