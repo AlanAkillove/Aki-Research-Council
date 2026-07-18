@@ -1,0 +1,10 @@
+# 默认由仓库所有者评审敏感路径。
+
+* @AlanAkillove
+
+/docs/product/ @AlanAkillove
+/docs/collab/adr/ @AlanAkillove
+/prompts/ @AlanAkillove
+/research_state/ @AlanAkillove
+/config/ @AlanAkillove
+/.github/ @AlanAkillove

@@ -1,0 +1,16 @@
+---
+description: ARC 项目编码与文档约束
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# ARC Cursor Rules
+
+- 先读 `docs/product/01`–`04`；字段与限额以 `docs/product/03-tech-spec.md` 为准。
+- 代码放 `src/arc/`；正式决策只经 Chair 写 `research_state/`。
+- 禁止提交密钥；禁止改历史报告；JSONL 只追加。
+- 不宣称阶段完成除非 `docs/product/04-acceptance-criteria.md` 对应项已勾选。
+- 不擅自做 P4 自动执行。新颖性只用 Tech Spec 五档枚举。
+- Schema/Prompt 变更同步文档与版本号；重大取舍写 ADR。
+- 任务进度更新根目录 `TODO.md`。
