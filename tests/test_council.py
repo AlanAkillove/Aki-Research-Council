@@ -107,3 +107,76 @@ def test_claim_approve_idempotent(tmp_path: Path, monkeypatch) -> None:
     # Second approve should return None (already approved)
     result = approve_claim(c.claim_id)
     assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Idea lifecycle
+# ---------------------------------------------------------------------------
+
+
+def test_idea_write_and_list(tmp_path: Path, monkeypatch) -> None:
+    import arc.memory as mem
+
+    monkeypatch.setattr(mem, "IDEAS_PATH", tmp_path / "ideas.jsonl")
+
+    i1 = mem.write_idea(title="Test Idea", claim="A novel approach")
+    assert i1.idea_id.startswith("IDEA-")
+    assert i1.stage.value == "signal"
+
+    i2 = mem.write_idea(title="Hypothesis Idea", claim="Better method", stage="hypothesis")
+    assert i2.stage.value == "hypothesis"
+
+    ideas = mem.list_ideas()
+    assert len(ideas) == 2
+
+    signals = mem.list_ideas(stage="signal")
+    assert len(signals) == 1
+    assert signals[0].title == "Test Idea"
+
+
+def test_idea_transition(tmp_path: Path, monkeypatch) -> None:
+    import arc.memory as mem
+
+    monkeypatch.setattr(mem, "IDEAS_PATH", tmp_path / "ideas.jsonl")
+
+    idea = mem.write_idea(title="Growing Idea")
+    assert idea.stage.value == "signal"
+
+    # Valid: signal -> hypothesis
+    updated = mem.transition_idea(idea.idea_id, "hypothesis")
+    assert updated is not None
+    assert updated.stage.value == "hypothesis"
+
+    # Valid: hypothesis -> candidate
+    updated = mem.transition_idea(idea.idea_id, "candidate")
+    assert updated is not None
+    assert updated.stage.value == "candidate"
+
+
+def test_idea_invalid_transition(tmp_path: Path, monkeypatch) -> None:
+    import arc.memory as mem
+
+    monkeypatch.setattr(mem, "IDEAS_PATH", tmp_path / "ideas.jsonl")
+
+    idea = mem.write_idea(title="Skip")
+    assert idea.stage.value == "signal"
+
+    # Invalid: signal -> active_project
+    import pytest
+
+    with pytest.raises(ValueError, match="Cannot transition"):
+        mem.transition_idea(idea.idea_id, "active_project")
+
+
+def test_idea_rejected_is_terminal(tmp_path: Path, monkeypatch) -> None:
+    import arc.memory as mem
+
+    monkeypatch.setattr(mem, "IDEAS_PATH", tmp_path / "ideas.jsonl")
+
+    idea = mem.write_idea(title="Doomed Idea")
+    mem.transition_idea(idea.idea_id, "rejected")
+
+    import pytest
+
+    with pytest.raises(ValueError, match="Cannot transition"):
+        mem.transition_idea(idea.idea_id, "signal")

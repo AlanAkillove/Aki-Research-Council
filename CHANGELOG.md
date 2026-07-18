@@ -6,6 +6,10 @@
 
 ### Added
 
+- P3 Idea 生命周期：`ideas.jsonl` append-only，write/list/transition（含状态机验证）
+- `arc idea add|list|transition` CLI 命令
+- 周会 PPTX 生成：`python-pptx`，`arc weekly --pptx`（深色主题标题页 + 概览 + 任务）
+- P2 验收：用 DeepSeek 对 3 篇论文运行完整 Council pipeline（Evidence/Skeptic/Historian/Liaison/Chair）
 - P2 证据系统：`EvidenceType` 枚举 + PaperStore evidence 表（SQLite CRUD）
 - Evidence Pack Builder：LLM 从论文摘要抽取结构化证据（定理/实验/主张/限制）
 - Claim Ledger：`claims.jsonl` append-only，write/list/approve（Chair 审批门禁）

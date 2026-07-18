@@ -76,7 +76,7 @@ async def build_evidence_pack(
             id=f"EV-{uuid4().hex[:12]}",
             paper_id=paper.canonical_id,
             content=item.content,
-            evidence_type=EvidenceType(item.evidence_type),
+            evidence_type=EvidenceType(item.evidence_type) if item.evidence_type in EvidenceType._value2member_map_ else EvidenceType.OTHER,
             source_tier=SourceTier.A,
             extraction_method="api",
             confidence=item.confidence,
