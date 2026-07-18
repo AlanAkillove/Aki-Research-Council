@@ -6,6 +6,7 @@
 2. [`docs/product/02-architecture.md`](docs/product/02-architecture.md)
 3. [`docs/product/03-tech-spec.md`](docs/product/03-tech-spec.md)
 4. [`docs/product/04-acceptance-criteria.md`](docs/product/04-acceptance-criteria.md)
+5. 涉及 HTML/站点时：[`docs/product/05-ui-design.md`](docs/product/05-ui-design.md)
 
 **字段、限额、状态机以 Tech Spec 为准。** 意图冲突回指 PRD / Architecture。
 

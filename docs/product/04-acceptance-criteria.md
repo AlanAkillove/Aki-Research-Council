@@ -33,7 +33,7 @@
 - [ ] `research_state` 可配置 ≥1 个项目与开放问题
 - [ ] 两阶段筛选：硬过滤 → LLM 多维 JSON 精排
 - [ ] 三个频道可开关：`ai_for_math` / `structured_and_reliable_vision` / `combinatorics_and_matroids`
-- [ ] 生成每日 Markdown + 自包含 HTML（Jinja2，无 Quarto 硬依赖）
+- [ ] 生成每日 Markdown + 自包含 HTML（Jinja2；色板与第一屏结构符合 [`05-ui-design.md`](./05-ui-design.md)）
 - [ ] 基础反馈可写入 `feedback.jsonl`（不改历史报告）
 
 ### P1.2 验收标准（通过条件）

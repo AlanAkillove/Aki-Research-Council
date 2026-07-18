@@ -233,6 +233,7 @@ A Scout Brief
 ```
 
 静态站点：归档、按项目过滤、证据折叠、反馈按钮、State 对照、Rejected Ideas。  
+视觉遵循 [`05-ui-design.md`](./05-ui-design.md)（暖奶油画布 + 珊瑚强调 + 深色证据面）。  
 **Quarto / PptxGenJS 不在主路径**（见 [ADR-0002](../collab/adr/0002-stack-revision.md)）。
 
 调度：

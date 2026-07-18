@@ -14,8 +14,9 @@ docs/
 | [02-architecture.md](./product/02-architecture.md) | 架构与方案 |
 | [03-tech-spec.md](./product/03-tech-spec.md) | 技术规格 |
 | [04-acceptance-criteria.md](./product/04-acceptance-criteria.md) | 验收清单 |
+| [05-ui-design.md](./product/05-ui-design.md) | UI 设计系统（Claude 暖色编辑风） |
 
-阅读顺序：01 → 02 → 03 → 04。意图看 01/02，字段看 03，是否完工看 04。
+阅读顺序：01 → 02 → 03 → 04；做 HTML/站点时加读 05。意图看 01/02，字段看 03，完工看 04，视觉看 05。
 
 ## 协作文档 [`collab/`](./collab/)
 

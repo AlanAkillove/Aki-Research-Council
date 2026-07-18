@@ -6,15 +6,15 @@
 
 ### Added
 
-- （尚无运行时行为）
+- UI 设计系统（Claude 暖色编辑风）[`docs/product/05-ui-design.md`](docs/product/05-ui-design.md)
 
 ### Changed
 
-- （尚无）
+- （尚无运行时行为）
 
 ### Fixed
 
-- （尚无）
+- 本仓库补齐 local `user.name` / `user.email`（与其它仓一致；本机无全局 `.gitconfig`）
 
 ## [0.0.1] — 2026-07-18
 

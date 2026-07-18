@@ -10,6 +10,7 @@
 | 看架构 | [`docs/product/02-architecture.md`](docs/product/02-architecture.md) |
 | 查字段/限额 | [`docs/product/03-tech-spec.md`](docs/product/03-tech-spec.md) |
 | 看是否做完 | [`docs/product/04-acceptance-criteria.md`](docs/product/04-acceptance-criteria.md) |
+| UI 视觉 | [`docs/product/05-ui-design.md`](docs/product/05-ui-design.md) |
 | 协作规范 / 排障 | [`docs/collab/README.md`](docs/collab/README.md) |
 | 当前任务 | [`TODO.md`](TODO.md) |
 | 给 Agent 的纪律 | [`AGENTS.md`](AGENTS.md) |
@@ -18,7 +19,7 @@
 
 ```text
 docs/
-├── product/   # PRD · Architecture · Tech Spec · Acceptance
+├── product/   # PRD · Architecture · Tech Spec · Acceptance · UI
 └── collab/    # ADR · Runbook · DoD · Eval · Postmortems …
 ```
 

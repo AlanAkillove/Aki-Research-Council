@@ -26,8 +26,9 @@ vector_index: sqlite_blobs + numpy_cosine   # MVP；见升级条件
 embeddings_api: OpenAI-compatible 或本地小模型
 llm_access: openai_sdk_compatible + ModelProvider
 pdf: PyMuPDF                    # 数学论文优先 arXiv TeX
-daily_render: Jinja2 → Markdown + self-contained HTML  # KaTeX CDN
+daily_render: Jinja2 → Markdown + self-contained HTML  # KaTeX CDN；主题见 05-ui-design
 weekly_slides: python-pptx + Markdown minutes
+ui_theme: docs/product/05-ui-design.md   # Claude 暖色编辑风 token
 scheduler_primary: local cron / Task Scheduler / 手动
 scheduler_secondary: GitHub Actions           # CI、Pages、可选轻量 ingest
 site: 本地静态 或 GitHub Pages（脱敏后）
@@ -407,11 +408,11 @@ Rejected 必须含：时间、原因、证据、复活条件。
 ```text
 CouncilResult JSON
   → Jinja2 渲染 Markdown（事实源，入 Git）
-  → Jinja2 渲染自包含 HTML（KaTeX CDN）
+  → Jinja2 渲染自包含 HTML（KaTeX CDN + `templates/styles/tokens.css`，遵循 UI 设计系统）
   → （周会）python-pptx 生成 PPTX + 保留 Markdown 纪要
 ```
 
-不依赖 Quarto / Node。路径：
+视觉规范见 [`05-ui-design.md`](./05-ui-design.md)。不依赖 Quarto / Node。路径：
 
 ```text
 reports/daily/YYYY-MM-DD.md

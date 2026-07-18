@@ -7,7 +7,7 @@ alwaysApply: true
 
 # ARC Cursor Rules
 
-- 先读 `docs/product/01`–`04`；字段与限额以 `docs/product/03-tech-spec.md` 为准。
+- 先读 `docs/product/01`–`04`（做 HTML 时加读 `05-ui-design`）；字段与限额以 `docs/product/03-tech-spec.md` 为准。
 - 代码放 `src/arc/`；正式决策只经 Chair 写 `research_state/`。
 - 禁止提交密钥；禁止改历史报告；JSONL 只追加。
 - 不宣称阶段完成除非 `docs/product/04-acceptance-criteria.md` 对应项已勾选。
