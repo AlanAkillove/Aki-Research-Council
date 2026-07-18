@@ -1,18 +1,9 @@
-"""Ingestion adapters (stubs for P1)."""
+"""Ingestion adapters: arXiv API client + SQLite store."""
 
-from __future__ import annotations
+from arc.ingestion.arxiv import ArxivClient
+from arc.ingestion.store import PaperStore
 
-from dataclasses import dataclass
-from datetime import date
-
-
-@dataclass
-class FetchCursor:
-    source: str
-    as_of: date
-
-
-async def fetch_arxiv_stub(categories: list[str], as_of: date | None = None) -> list[dict]:
-    """Placeholder — real arXiv client lands in Next P1."""
-    _ = categories, as_of
-    return []
+__all__ = [
+    "ArxivClient",
+    "PaperStore",
+]
