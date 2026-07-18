@@ -25,13 +25,20 @@ class OpenAICompatibleProvider(ModelProvider):
         self.client = AsyncOpenAI(api_key=key, base_url=base_url)
 
     async def generate(self, task: str, schema: type[T], context: dict) -> T:
+        schema_def = json.dumps(schema.model_json_schema(), indent=2)
         system = (
             "You are a research assistant for ARC. "
-            "Return ONLY valid JSON matching the requested schema. "
+            "Return ONLY valid JSON that matches the schema below exactly. "
+            "Every required field MUST be present. "
             "Never claim absolute novelty (no 首创/全新). "
-            "Distinguish facts, author claims, and inferences."
+            "Distinguish facts, author claims, and inferences.\n\n"
+            f"Required JSON schema:\n{schema_def}"
         )
-        user = json.dumps({"task": task, "context": context}, ensure_ascii=False)
+        user = json.dumps(
+            {"task": task, "context": context},
+            ensure_ascii=False,
+            indent=2,
+        )
         response = await self.client.chat.completions.create(
             model=self.role.model,
             temperature=self.role.temperature,

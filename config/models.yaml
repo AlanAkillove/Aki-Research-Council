@@ -1,4 +1,5 @@
 # OpenAI-compatible endpoints. Override base_url per role or via OPENAI_BASE_URL.
+# Currently configured for DeepSeek API.
 default_base_url: null
 
 embedding:
@@ -6,17 +7,17 @@ embedding:
   temperature: 0.0
 
 triage:
-  model: gpt-4o-mini
+  model: deepseek-v4-flash
   temperature: 0.1
 
 structured_analysis:
-  model: gpt-4o-mini
+  model: deepseek-v4-pro
   temperature: 0.2
 
 deep_review:
-  model: gpt-4o
+  model: deepseek-v4-pro
   temperature: 0.2
 
 math_analysis:
-  model: gpt-4o
+  model: deepseek-v4-pro
   temperature: 0.1
