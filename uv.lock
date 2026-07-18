@@ -14,6 +14,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
+    { name = "python-pptx" },
     { name = "pyyaml" },
     { name = "typer" },
 ]
@@ -41,6 +42,7 @@ requires-dist = [
     { name = "pymupdf", marker = "extra == 'pdf'", specifier = ">=1.25.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
+    { name = "python-pptx", specifier = ">=1.0.2" },
     { name = "python-pptx", marker = "extra == 'slides'", specifier = ">=1.0.0" },
     { name = "pyyaml", specifier = ">=6.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.9.0" },

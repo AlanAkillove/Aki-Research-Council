@@ -12,10 +12,12 @@ import yaml
 from arc.paths import RESEARCH_STATE_DIR
 from arc.schemas import FEEDBACK_FILE, FeedbackEntry, FeedbackLabel
 from arc.schemas import CLAIMS_FILE, Claim, ClaimType
+from arc.schemas import IDEAS_FILE, Idea, IdeaStage
 
 
 FEEDBACK_PATH = RESEARCH_STATE_DIR / FEEDBACK_FILE
 CLAIMS_PATH = RESEARCH_STATE_DIR / CLAIMS_FILE
+IDEAS_PATH = RESEARCH_STATE_DIR / IDEAS_FILE
 
 
 def append_jsonl(path: Path, record: dict[str, Any]) -> None:
@@ -151,4 +153,90 @@ def approve_claim(
             lines.append(json.dumps(record, ensure_ascii=False))
     if found:
         CLAIMS_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return found
+
+
+# ---------------------------------------------------------------------------
+# Idea lifecycle (append-only JSONL, Tech Spec §5.3 / §8.3)
+# ---------------------------------------------------------------------------
+
+
+VALID_TRANSITIONS: dict[str, list[str]] = {
+    "signal": ["hypothesis", "rejected"],
+    "hypothesis": ["candidate", "rejected"],
+    "candidate": ["validated_candidate", "rejected"],
+    "validated_candidate": ["active_project", "rejected"],
+    "active_project": ["rejected"],
+    "rejected": [],  # terminal
+}
+
+
+def write_idea(
+    title: str,
+    claim: str = "",
+    stage: IdeaStage | str = IdeaStage.SIGNAL,
+    derived_from: dict[str, list[str]] | None = None,
+) -> Idea:
+    """Create a new idea and append to the ledger."""
+    if isinstance(stage, str):
+        stage = IdeaStage(stage)
+    idea = Idea(
+        idea_id=f"IDEA-{uuid4().hex[:12]}",
+        title=title,
+        stage=stage,
+        claim=claim,
+        derived_from=derived_from or {},
+    )
+    append_jsonl(IDEAS_PATH, idea.model_dump(mode="json"))
+    return idea
+
+
+def list_ideas(
+    stage: str | None = None,
+    limit: int = 50,
+) -> list[Idea]:
+    """List ideas, optionally filtered by stage."""
+    all_ideas = [Idea.model_validate(r) for r in iter_jsonl(IDEAS_PATH)]
+    all_ideas.sort(key=lambda i: i.idea_id, reverse=True)
+    if stage:
+        all_ideas = [i for i in all_ideas if i.stage.value == stage]
+    return all_ideas[:limit]
+
+
+def transition_idea(
+    idea_id: str,
+    new_stage: IdeaStage | str,
+) -> Idea | None:
+    """Transition an idea to a new stage. Returns updated idea or None.
+
+    Validates against ``VALID_TRANSITIONS``. Rejected is terminal.
+    """
+    if isinstance(new_stage, str):
+        new_stage = IdeaStage(new_stage)
+
+    lines = []
+    found = None
+    if not IDEAS_PATH.exists():
+        return None
+
+    with IDEAS_PATH.open("r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            record = json.loads(line)
+            if record.get("idea_id") == idea_id:
+                current = IdeaStage(record["stage"])
+                allowed = VALID_TRANSITIONS.get(current.value, [])
+                if new_stage.value not in allowed:
+                    raise ValueError(
+                        f"Cannot transition from {current.value} to {new_stage.value}. "
+                        f"Allowed: {allowed}"
+                    )
+                record["stage"] = new_stage.value
+                found = Idea.model_validate(record)
+            lines.append(json.dumps(record, ensure_ascii=False))
+
+    if found:
+        IDEAS_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return found

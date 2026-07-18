@@ -15,9 +15,12 @@ from arc.ingestion import ArxivClient, PaperStore
 from arc.memory import (
     approve_claim as _approve_claim,
     list_claims as _list_claims,
+    list_ideas as _list_ideas,
     list_projects,
     load_researcher_profile,
+    transition_idea as _transition_idea,
     write_claim as _write_claim,
+    write_idea as _write_idea,
 )
 from arc.memory import list_feedback as _list_feedback
 from arc.memory import write_feedback as _write_feedback
@@ -438,15 +441,68 @@ def claim_approve(
 
 
 # ---------------------------------------------------------------------------
-# arc weekly
+# arc idea
+# ---------------------------------------------------------------------------
+
+_idea_app = typer.Typer(help="Manage Idea lifecycle")
+app.add_typer(_idea_app, name="idea")
+
+
+@_idea_app.command("add")
+def idea_add(
+    title: str = typer.Argument(..., help="Idea title"),
+    claim: str = typer.Option("", "--claim", "-c", help="Core claim"),
+    stage: str = typer.Option("signal", "--stage", "-s",
+        help="signal|hypothesis|candidate|validated_candidate|active_project"),
+) -> None:
+    """Add a new idea to the ledger."""
+    idea = _write_idea(title=title, claim=claim, stage=stage)
+    typer.echo(f"Idea created: {idea.idea_id} [{idea.stage.value}]")
+
+
+@_idea_app.command("list")
+def idea_list(
+    stage: str | None = typer.Option(None, "--stage", "-s", help="Filter by stage"),
+    limit: int = typer.Option(20, "--limit", "-n"),
+) -> None:
+    """List ideas."""
+    ideas = _list_ideas(stage=stage, limit=limit)
+    if not ideas:
+        typer.echo("No ideas found.")
+        return
+    for i in ideas:
+        typer.echo(f"{i.idea_id} [{i.stage.value:20s}] {i.title[:80]}")
+
+
+@_idea_app.command("transition")
+def idea_transition(
+    idea_id: str = typer.Argument(..., help="Idea ID (IDEA-...)"),
+    stage: str = typer.Argument(...,
+        help="Target stage: signal|hypothesis|candidate|validated_candidate|active_project|rejected"),
+) -> None:
+    """Transition an idea to a new stage."""
+    try:
+        result = _transition_idea(idea_id, stage)
+        if result:
+            typer.echo(f"Idea {idea_id} transitioned to {result.stage.value}")
+        else:
+            typer.secho(f"Idea not found: {idea_id}", fg=typer.colors.RED)
+    except ValueError as exc:
+        typer.secho(f"Error: {exc}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+# ---------------------------------------------------------------------------
+# arc weekly (enhanced with --pptx)
 # ---------------------------------------------------------------------------
 
 
 @app.command("weekly")
 def weekly(
     week: str | None = typer.Option(None, "--week", help="YYYY-Www (default: current)"),
+    pptx: bool = typer.Option(False, "--pptx", help="Generate PPTX slides"),
 ) -> None:
-    """Generate a skeleton weekly report."""
+    """Generate weekly report (Markdown + optional PPTX)."""
     ensure_runtime_dirs()
     from datetime import date as dt_date
 
@@ -466,11 +522,21 @@ def weekly(
         "featured_papers": [],
         "council_outputs": {},
         "decisions": [],
-        "actions": ["周报管线将在 P2 完整实现后填充数据。"],
+        "actions": ["周报管线将在 P3 完整实现后填充数据。"],
         "partial": True,
     }
-    path = write_weekly_report(week_str, context)
-    typer.echo(f"Wrote weekly report: {path}")
+    md_path = write_weekly_report(week_str, context)
+    typer.echo(f"Wrote weekly report: {md_path}")
+
+    if pptx:
+        try:
+            from arc.reporting.pptx import write_weekly_pptx
+
+            pptx_path = write_weekly_pptx(week_str, context)
+            typer.echo(f"Wrote weekly slides: {pptx_path}")
+        except Exception as exc:
+            typer.secho(f"PPTX generation failed: {exc}", fg=typer.colors.RED)
+            raise typer.Exit(code=1)
 
 
 # ---------------------------------------------------------------------------

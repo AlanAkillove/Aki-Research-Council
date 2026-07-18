@@ -60,6 +60,7 @@ class EvidenceType(StrEnum):
     REVIEW = "review"
     CODE = "code"
     CLAIM = "claim"
+    AUTHOR_CLAIM = "author_claim"
     LIMITATION = "limitation"
     OTHER = "other"
 
@@ -185,6 +186,7 @@ class RunLog(BaseModel):
 
 FEEDBACK_FILE = "feedback.jsonl"
 CLAIMS_FILE = "claims.jsonl"
+IDEAS_FILE = "ideas.jsonl"
 
 
 class FeedbackEntry(BaseModel):
