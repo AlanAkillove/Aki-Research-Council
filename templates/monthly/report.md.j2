@@ -1,0 +1,72 @@
+# {{ brand }} — {{ subtitle }}
+
+**Month:** {{ date }} · **Mode:** {{ mode }}{% if partial %} · `partial`{% endif %}
+
+## 月度概览
+
+{% for h in headlines %}
+{{ loop.index }}. **{{ h.title }}** — {{ h.why }}
+{% else %}
+_本月无显著信号_
+{% endfor %}
+
+## 主题热度
+
+{% for topic, count in topic_heat.items() %}
+- **{{ topic }}**: {{ count }} 篇
+{% else %}
+_无_
+{% endfor %}
+
+## Idea 漏斗
+
+| 阶段 | 数量 |
+|------|------|
+| Signal | {{ funnel.signal | default(0) }} |
+| Hypothesis | {{ funnel.hypothesis | default(0) }} |
+| Candidate | {{ funnel.candidate | default(0) }} |
+| Validated | {{ funnel.validated_candidate | default(0) }} |
+| Active | {{ funnel.active_project | default(0) }} |
+| Rejected | {{ funnel.rejected | default(0) }} |
+
+## 权重敏感性
+
+{% if sensitivity %}
+{% for k, v in sensitivity.items() %}
+- **{{ k }}**: 当前 {{ v.current }}，反馈建议 {{ v.suggested }}
+{% endfor %}
+{% else %}
+_权重分析将在反馈数据累积后运行_
+{% endif %}
+
+## 探索配比
+
+{% if exploration_audit %}
+- 项目相关: {{ exploration_audit.project_related }}%
+- 邻近方法: {{ exploration_audit.adjacent_methods }}%
+- 高不确定: {{ exploration_audit.high_uncertainty }}%
+{% else %}
+_配比审计将在筛选管线就绪后运行_
+{% endif %}
+
+## 成本统计
+
+{% if costs %}
+- 总运行次数: {{ costs.run_count }}
+- 总 Token 消耗: {{ costs.total_tokens }}
+- 总花费: \${{ "%.2f"|format(costs.total_cost_usd) }}
+{% else %}
+_统计将在多次运行后累积_
+{% endif %}
+
+## 下月计划
+
+{% for a in actions %}
+{{ loop.index }}. {{ a }}
+{% else %}
+暂不行动。
+{% endfor %}
+
+---
+
+_ARC · 月报 · {{ date }}_

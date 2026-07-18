@@ -656,6 +656,76 @@ def council_tournament(
         typer.echo("No winner selected (all ideas had skeptic_score <= 0.3)")
 
 
+@app.command("monthly")
+def monthly(
+    month: str | None = typer.Option(None, "--month", help="YYYY-MM (default: current)"),
+) -> None:
+    """Generate monthly retrospective report."""
+    ensure_runtime_dirs()
+    from datetime import date as dt_date
+    from arc.ranking import audit_exploration_mix, calibrate_weights_from_feedback
+    from arc.memory import list_ideas
+    from arc.reporting import write_monthly_report
+
+    month_str = month or dt_date.today().strftime("%Y-%m")
+    profile = load_researcher_profile()
+    projects = list_projects()
+
+    ideas = list_ideas(limit=200)
+    funnel = {"signal": 0, "hypothesis": 0, "candidate": 0,
+              "validated_candidate": 0, "active_project": 0, "rejected": 0}
+    for i in ideas:
+        s = i.stage.value
+        if s in funnel:
+            funnel[s] += 1
+
+    sensitivity = calibrate_weights_from_feedback()
+    from arc.ingestion import PaperStore
+
+    store = PaperStore(DATA_DIR / "indexes")
+    exploration = audit_exploration_mix(store)
+    store.close()
+
+    context = {
+        "date": month_str, "mode": "monthly_retro",
+        "brand": "ARC", "subtitle": "Aki Research Council",
+        "profile_name": profile.get("name", "researcher"),
+        "projects": projects, "headlines": [], "topic_heat": {},
+        "funnel": funnel, "sensitivity": sensitivity,
+        "exploration_audit": exploration, "costs": None,
+        "actions": ["月度回顾数据将在完整 pipeline 运行后自动填充。"],
+        "partial": True,
+    }
+    path = write_monthly_report(month_str, context)
+    typer.echo(f"Wrote monthly report: {path}")
+
+
+@app.command("analyze")
+def analyze() -> None:
+    """Run feedback calibration and exploration mix audit."""
+    ensure_runtime_dirs()
+    from arc.ranking import audit_exploration_mix, calibrate_weights_from_feedback
+    from arc.ingestion import PaperStore
+
+    typer.echo("=== Feedback Weight Calibration ===")
+    cal = calibrate_weights_from_feedback()
+    for k, v in cal.items():
+        typer.echo(f"  {k}: current={v['current']} suggested={v['suggested']} ({v['reason']})")
+
+    typer.echo("")
+    typer.echo("=== Exploration Mix Audit ===")
+    store = PaperStore(DATA_DIR / "indexes")
+    audit = audit_exploration_mix(store)
+    store.close()
+    if "sample_size" in audit:
+        typer.echo(f"  Sample size: {audit['sample_size']}")
+        typer.echo(f"  Project related: {audit['project_related']}%")
+        typer.echo(f"  Adjacent methods: {audit['adjacent_methods']}%")
+        typer.echo(f"  High uncertainty: {audit['high_uncertainty']}%")
+    else:
+        typer.echo(f"  {audit.get('note', 'no data')}")
+
+
 def main() -> None:
     """Console script entry (setuptools/uv)."""
     app()

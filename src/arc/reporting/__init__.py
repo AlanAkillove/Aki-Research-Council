@@ -52,3 +52,20 @@ def write_weekly_report(week_str: str, context: dict[str, Any]) -> Path:
     md_path = out_dir / f"{week_str}.md"
     md_path.write_text(render_weekly_markdown(context), encoding="utf-8")
     return md_path
+
+
+# ---------------------------------------------------------------------------
+# Monthly report
+# ---------------------------------------------------------------------------
+
+
+def render_monthly_markdown(context: dict[str, Any]) -> str:
+    return _env().get_template("monthly/report.md.j2").render(**context)
+
+
+def write_monthly_report(month_str: str, context: dict[str, Any]) -> Path:
+    out_dir = REPORTS_DIR / "monthly"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    md_path = out_dir / f"{month_str}.md"
+    md_path.write_text(render_monthly_markdown(context), encoding="utf-8")
+    return md_path

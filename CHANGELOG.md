@@ -6,6 +6,10 @@
 
 ### Added
 
+- 月度回顾报告：`templates/monthly/report.md.j2` + `arc monthly` CLI
+- 反馈校准：`calibrate_weights_from_feedback()`（正/负反馈 → 权重调整建议）
+- 探索配比审计：`audit_exploration_mix()`（项目相关/邻近/高不确定比例）
+- `arc analyze` 命令：一键运行权重校准 + 配比审计
 - P3 想法锦标赛：`council/tournament.py`（Skeptic + Feasibility 双维度 LLM 评估，自动晋升）
 - `arc council tournament` CLI 命令（`--echo/--no-echo` 离线/在线模式，`--dry-run` 预览）
 - 状态机自动路径：signal→hypothesis→candidate→validated_candidate（自动走完中间阶段）

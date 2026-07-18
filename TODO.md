@@ -10,13 +10,14 @@
 - [x] P3 Idea 生命周期（ideas.jsonl + CLI + 状态机）
 - [x] P3 想法锦标赛（Generation / Skeptic / Feasibility + 自动晋升）
 - [x] 周会 PPTX（python-pptx + arc weekly --pptx）
+- [x] 月度回顾报告（arc monthly）
+- [x] 反馈校准 & 权重敏感性（calibrate_weights_from_feedback）
+- [x] 探索配比审计（audit_exploration_mix + arc analyze）
 
 ## Next
 
-- [ ] P3 想法锦标赛（Generation / Skeptic / Feasibility）
-- [ ] 反馈校准排序 & 月度权重敏感性
-- [ ] 月度回顾报告
-- [ ] 70/20/10 探索配比审计
+- [ ] P3 完整性与稳定性提升
+- [ ] 文档完善
 
 ## Later
 

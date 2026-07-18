@@ -328,3 +328,102 @@ async def run_screening(
     report = await run_stage2(candidates, provider, ranking)
     report.stage1_input = len(candidates)
     return report
+
+
+# ---------------------------------------------------------------------------
+# Feedback calibration (Tech Spec §10.2)
+# ---------------------------------------------------------------------------
+
+
+def calibrate_weights_from_feedback(
+    ranking: RankingConfig | None = None,
+) -> dict[str, dict]:
+    """Analyze feedback.jsonl and suggest weight adjustments.
+
+    Reads feedback entries, counts positive signals (值得精读 / 直接相关 / 可迁移)
+    vs negative signals (证据不足 / 宣传大于贡献 / 不再推荐).
+
+    Returns a dict mapping weight keys to current/suggested values.
+    """
+    from arc.memory import list_feedback
+    from arc.schemas import FeedbackLabel
+
+    ranking = ranking or RankingConfig()
+    entries = list_feedback(limit=500)
+
+    positive_count = sum(
+        1 for e in entries
+        if e.label in (FeedbackLabel.WORTH_READING, FeedbackLabel.DIRECTLY_RELEVANT,
+                       FeedbackLabel.METHOD_TRANSFERABLE)
+    )
+    negative_count = sum(
+        1 for e in entries
+        if e.label in (FeedbackLabel.INSUFFICIENT_EVIDENCE,
+                       FeedbackLabel.HYPE_OVER_CONTRIBUTION,
+                       FeedbackLabel.STOP_RECOMMENDING)
+    )
+    total_relevant = positive_count + negative_count
+
+    result: dict[str, dict] = {}
+    if total_relevant == 0:
+        for k, v in ranking.weights.items():
+            result[k] = {"current": v, "suggested": v, "reason": "no_feedback_data"}
+        return result
+
+    # Adjust weights based on feedback ratio
+    ratio = positive_count / total_relevant if total_relevant > 0 else 0.5
+    adjustment = (ratio - 0.5) * 0.1  # max ±0.05 adjustment
+
+    for k, v in ranking.weights.items():
+        suggested = round(max(0.05, min(0.40, v + adjustment)), 3)
+        result[k] = {
+            "current": v,
+            "suggested": suggested,
+            "reason": f"feedback_ratio={ratio:.2f} ({positive_count}+/{total_relevant}total)",
+        }
+
+    return result
+
+
+def audit_exploration_mix(store: PaperStore | None = None) -> dict:
+    """Audit the 70/20/10 exploration mix from stored papers.
+
+    Categorizes papers by topic keywords into:
+    - project_related: matches configured topic keywords
+    - adjacent_methods: shares categories with enabled channels
+    - high_uncertainty: neither of the above
+    """
+    cfg = load_hard_filter_config()
+
+    # Collect all topic keywords
+    all_keywords: set[str] = set()
+    for kw_list in cfg.topic_keywords.values():
+        all_keywords.update(k.lower() for k in kw_list)
+
+    project_related = 0
+    adjacent = 0
+    uncertain = 0
+    total = 0
+
+    if store:
+        papers = store.get_papers(limit=500)
+        for p in papers:
+            total += 1
+            text = (p.title + " " + p.abstract).lower()
+            if any(kw in text for kw in all_keywords):
+                project_related += 1
+            elif set(p.categories) & cfg.allowed_categories:
+                adjacent += 1
+            else:
+                uncertain += 1
+
+    if total == 0:
+        return {"project_related": 0, "adjacent_methods": 0, "high_uncertainty": 0,
+                "note": "no_papers_in_store"}
+
+    return {
+        "project_related": round(project_related / total * 100, 1),
+        "adjacent_methods": round(adjacent / total * 100, 1),
+        "high_uncertainty": round(uncertain / total * 100, 1),
+        "sample_size": total,
+    }
