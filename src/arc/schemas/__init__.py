@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Any
 
@@ -51,6 +51,21 @@ class SourceTier(StrEnum):
     B = "B"
     C = "C"
     D = "D"
+
+
+class FeedbackLabel(StrEnum):
+    """Feedback taxonomy from Tech Spec §10."""
+
+    WORTH_READING = "值得精读"
+    DIRECTLY_RELEVANT = "与当前项目直接相关"
+    METHOD_TRANSFERABLE = "方法可迁移"
+    GENERAL_BACKGROUND = "只是一般背景"
+    INSUFFICIENT_EVIDENCE = "证据不足"
+    HYPE_OVER_CONTRIBUTION = "宣传大于贡献"
+    RESOURCE_MISMATCH = "资源不适配"
+    ALREADY_SEEN = "已经看过"
+    CONTINUE_TRACKING = "持续跟踪"
+    STOP_RECOMMENDING = "不再推荐"
 
 
 class NoveltyLabel(StrEnum):
@@ -154,3 +169,17 @@ class RunLog(BaseModel):
     total_cost_usd: float = 0.0
     status: str = "success"
     failures: list[str] = Field(default_factory=list)
+
+
+FEEDBACK_FILE = "feedback.jsonl"
+
+
+class FeedbackEntry(BaseModel):
+    """Append-only user feedback on a paper or recommendation (Tech Spec §10)."""
+
+    feedback_id: str
+    paper_id: str
+    label: FeedbackLabel
+    comment: str = ""
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    source: str = "cli"

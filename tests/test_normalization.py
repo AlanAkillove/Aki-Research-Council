@@ -250,3 +250,29 @@ def test_build_daily_context_no_candidates():
     assert ctx["featured_papers"] == []
     assert ctx["actions"] == ["继续监测 arXiv 新论文。"]
     assert ctx["partial"] is False
+
+
+# ---------------------------------------------------------------------------
+# Feedback
+# ---------------------------------------------------------------------------
+
+
+def test_feedback_write_and_list(tmp_path: Path, monkeypatch) -> None:
+    from arc import memory
+    from arc.schemas import FeedbackEntry, FeedbackLabel
+
+    monkeypatch.setattr(memory, "FEEDBACK_PATH", tmp_path / "feedback.jsonl")
+
+    entry = memory.write_feedback("arxiv:2607.100", "值得精读", comment="Nice!")
+    assert entry.paper_id == "arxiv:2607.100"
+    assert entry.label == FeedbackLabel.WORTH_READING
+    assert isinstance(entry, FeedbackEntry)
+
+    entry2 = memory.write_feedback("arxiv:2607.200", "不再推荐")
+    assert entry2.paper_id == "arxiv:2607.200"
+
+    entries = memory.list_feedback(limit=10)
+    assert len(entries) == 2
+    # Newest first
+    assert entries[0].paper_id == "arxiv:2607.200"
+    assert entries[1].paper_id == "arxiv:2607.100"

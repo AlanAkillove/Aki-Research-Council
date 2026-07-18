@@ -5,10 +5,15 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any, Iterator
+from uuid import uuid4
 
 import yaml
 
 from arc.paths import RESEARCH_STATE_DIR
+from arc.schemas import FEEDBACK_FILE, FeedbackEntry, FeedbackLabel
+
+
+FEEDBACK_PATH = RESEARCH_STATE_DIR / FEEDBACK_FILE
 
 
 def append_jsonl(path: Path, record: dict[str, Any]) -> None:
@@ -44,3 +49,35 @@ def list_projects() -> list[str]:
     if not projects_dir.exists():
         return []
     return sorted(p.stem for p in projects_dir.glob("*.yaml"))
+
+
+# ---------------------------------------------------------------------------
+# Feedback (append-only JSONL, Tech Spec §10)
+# ---------------------------------------------------------------------------
+
+
+def write_feedback(
+    paper_id: str,
+    label: FeedbackLabel | str,
+    comment: str = "",
+    source: str = "cli",
+) -> FeedbackEntry:
+    """Record a user feedback entry (append-only). Returns the entry."""
+    if isinstance(label, str):
+        label = FeedbackLabel(label)
+    entry = FeedbackEntry(
+        feedback_id=str(uuid4()),
+        paper_id=paper_id,
+        label=label,
+        comment=comment,
+        source=source,
+    )
+    append_jsonl(FEEDBACK_PATH, entry.model_dump(mode="json"))
+    return entry
+
+
+def list_feedback(limit: int = 50) -> list[FeedbackEntry]:
+    """Iterate feedback entries, newest first."""
+    entries = [FeedbackEntry.model_validate(r) for r in iter_jsonl(FEEDBACK_PATH)]
+    entries.sort(key=lambda e: e.created_at, reverse=True)
+    return entries[:limit]

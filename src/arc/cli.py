@@ -12,6 +12,8 @@ from arc import __version__
 from arc.config import load_models_config, load_ranking_config, load_sources_config
 from arc.ingestion import ArxivClient, PaperStore
 from arc.memory import list_projects
+from arc.memory import list_feedback as _list_feedback
+from arc.memory import write_feedback as _write_feedback
 from arc.normalization import run_normalization as normalize_papers
 from arc.paths import DATA_DIR, REPO_ROOT, ensure_runtime_dirs, load_env
 from arc.pipeline import run_daily_full, run_daily_skeleton, run_normalize_step, run_screening_step
@@ -94,26 +96,75 @@ def daily(
 
 @app.command("smoke")
 def smoke() -> None:
-    """Offline smoke: config + normalize + ranking + skeleton report."""
+    """Offline smoke: config + store + normalize + rank + feedback + report."""
     from arc.config import load_ranking_config
     from arc.normalization import pick_canonical_id, title_fingerprint
     from arc.providers import EchoModelProvider
-    from arc.ranking import composite_score
+    from arc.ranking import composite_score, HardFilterConfig, passes_hard_filter
     from arc.schemas import ScreenScores
 
     ensure_runtime_dirs()
+
+    # 1. Config
     load_sources_config()
     ranking = load_ranking_config()
-    assert title_fingerprint("Hello, World!") == "hello world"
+    assert ranking.daily_limits.featured_papers == 3
+
+    # 2. Fingerprint & canonical ID
+    fp = title_fingerprint("Hello, World!")
+    assert fp == "hello world"
     cid = pick_canonical_id(arxiv_id="2607.12345")
     assert cid == "arxiv:2607.12345"
 
+    # 3. LLM screening (echo)
     import asyncio
 
     scores = asyncio.run(EchoModelProvider().generate("screen", ScreenScores, {}))
-    _ = composite_score(scores, ranking)
-    run = run_daily_skeleton(date.today())
+    s = composite_score(scores, ranking)
+    assert isinstance(s, float)
+
+    # 4. Hard filter
+    cfg = HardFilterConfig(
+        topic_keywords={"ai_for_math": ["theorem"]},
+        allowed_categories={"cs.AI"},
+    )
+    from arc.schemas import Paper
+
+    paper = Paper(
+        canonical_id="arxiv:2607.smoke",
+        arxiv_id="2607.smoke",
+        title="Theorem Proving with AI",
+        authors=["Smoke"],
+        categories=["cs.AI"],
+        abstract="A theorem proving approach.",
+    )
+    ok, reason = passes_hard_filter(paper, cfg)
+    assert ok, f"expected pass, got {reason}"
+
+    # 5. Feedback round-trip
+    from arc.memory import list_feedback, write_feedback
+    from arc.schemas import FeedbackLabel
+
+    entry = write_feedback("arxiv:2607.smoke", "值得精读", comment="smoke test")
+    assert entry.paper_id == "arxiv:2607.smoke"
+    entries = list_feedback(limit=5)
+    matched = [e for e in entries if e.paper_id == "arxiv:2607.smoke"]
+    assert len(matched) >= 1, "feedback not found"
+
+    # 6. PaperStore round-trip
+    from arc.ingestion import PaperStore
+    from arc.paths import DATA_DIR
+
+    store = PaperStore(DATA_DIR / "indexes")
+    store.upsert_paper(paper)
+    fetched = store.get_paper("arxiv:2607.smoke")
+    assert fetched is not None and fetched.title == paper.title
+    store.close()
+
+    # 7. Skeleton report
+    run = run_daily_skeleton()
     assert run.status == "partial"
+
     typer.echo("smoke: ok")
 
 
@@ -229,6 +280,47 @@ def ingest_screen(
         typer.secho(f"  error: {err}", fg=typer.colors.RED)
     if not report["stage1_passed"]:
         typer.secho("  (no candidates — run 'arc ingest arxiv' then 'arc ingest normalize' first)", fg=typer.colors.YELLOW)
+
+
+_feedback_app = typer.Typer(help="Record and browse feedback on papers")
+app.add_typer(_feedback_app, name="feedback")
+
+
+@_feedback_app.command("add")
+def feedback_add(
+    paper_id: str = typer.Argument(..., help="Paper canonical_id or arXiv ID"),
+    label: str = typer.Argument(..., help="Feedback label (see --help for list)"),
+    comment: str = typer.Option("", "--comment", "-m", help="Optional comment"),
+) -> None:
+    """Record feedback on a paper.
+
+    Labels:\n"""
+    from arc.schemas import FeedbackLabel
+
+    valid = [f"  {l.value}" for l in FeedbackLabel]
+    typer.echo("Available labels:\n" + "\n".join(valid))
+    try:
+        entry = _write_feedback(paper_id, label, comment=comment)
+        typer.echo(f"Feedback recorded: {entry.feedback_id}")
+    except Exception as exc:
+        typer.secho(f"Error: {exc}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+@_feedback_app.command("list")
+def feedback_list(
+    limit: int = typer.Option(10, "--limit", "-n", help="Max entries"),
+) -> None:
+    """Show recent feedback entries."""
+    entries = _list_feedback(limit=limit)
+    if not entries:
+        typer.echo("No feedback entries yet.")
+        return
+    for e in entries:
+        ts = e.created_at.strftime("%Y-%m-%d %H:%M")
+        typer.echo(f"[{ts}] {e.label.value:12s}  {e.paper_id}")
+        if e.comment:
+            typer.echo(f"          comment: {e.comment}")
 
 
 def main() -> None:
