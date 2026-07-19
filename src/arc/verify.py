@@ -1,45 +1,38 @@
 """P4 — Minimal Verification Protocol generator.
 
-From an Idea, generate a concrete, human-executable verification plan
-with steps, expected outcomes, and kill criteria.
-
-Tech Spec P4: results writeback is append-only, auto-execution OFF by default.
+From an Idea, generate a concrete, human-executable verification plan.
+Status updates are append-only snapshots (latest-wins on read).
+Auto-execution remains OFF by default.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 from uuid import uuid4
 
 from pydantic import BaseModel
 
-from arc.memory import append_jsonl
-from arc.paths import RESEARCH_STATE_DIR
+from arc.memory import append_jsonl, iter_jsonl, _latest_by_key
+from arc.paths import RESEARCH_STATE_DIR, load_env
 from arc.providers import ModelProvider
 from arc.schemas import VERIFICATION_FILE, VerificationProtocol, VerificationStep
 
 logger = logging.getLogger(__name__)
 
 VERIFICATION_PATH = RESEARCH_STATE_DIR / VERIFICATION_FILE
-
-# P4 safety switch — OFF by default (Tech Spec P4.2)
 _AUTO_EXEC_KEY = "ARC_AUTO_EXECUTION"
+ALLOWED_STATUSES = frozenset({"draft", "active", "passed", "failed"})
 
 
 def is_auto_execution_enabled() -> bool:
-    """Check whether auto-execution is explicitly enabled.
-
-    Reads from environment variable ARC_AUTO_EXECUTION.
-    Must be "1" or "true" to enable. Default: OFF.
-    """
+    load_env()
     val = os.environ.get(_AUTO_EXEC_KEY, "0").strip().lower()
     return val in ("1", "true")
 
 
 def require_auto_execution() -> None:
-    """Guard: raise if auto-execution not enabled."""
+    """Guard: raise if auto-execution not enabled. Call before any executor."""
     if not is_auto_execution_enabled():
         raise RuntimeError(
             f"Auto-execution is DISABLED. Set {_AUTO_EXEC_KEY}=1 or "
@@ -61,11 +54,6 @@ async def generate_protocol(
     stage: str,
     provider: ModelProvider,
 ) -> VerificationProtocol:
-    """Generate a verification protocol from an Idea using LLM.
-
-    Returns a ``VerificationProtocol`` with concrete steps and criteria.
-    The protocol is appended to ``verifications.jsonl``.
-    """
     context = {
         "idea_id": idea_id,
         "title": title,
@@ -76,8 +64,12 @@ async def generate_protocol(
     raw = await provider.generate("generate_protocol", _ProtocolResponse, context)
 
     steps = [
-        VerificationStep(order=i + 1, description=s.get("description", ""),
-                         expected=s.get("expected", ""), command=s.get("command", ""))
+        VerificationStep(
+            order=i + 1,
+            description=s.get("description", ""),
+            expected=s.get("expected", ""),
+            command=s.get("command", ""),
+        )
         for i, s in enumerate(raw.steps)
     ]
 
@@ -98,34 +90,28 @@ async def generate_protocol(
 
 
 def list_protocols(idea_id: str | None = None, limit: int = 20) -> list[VerificationProtocol]:
-    """List stored verification protocols."""
-    from arc.memory import iter_jsonl
-
-    all_protos = [VerificationProtocol.model_validate(r) for r in iter_jsonl(VERIFICATION_PATH)]
+    raw = _latest_by_key(list(iter_jsonl(VERIFICATION_PATH)), "protocol_id")
+    all_protos = [VerificationProtocol.model_validate(r) for r in raw]
     all_protos.sort(key=lambda p: p.created_at, reverse=True)
     if idea_id:
         all_protos = [p for p in all_protos if p.idea_id == idea_id]
     return all_protos[:limit]
 
 
+def get_protocol(protocol_id: str) -> VerificationProtocol | None:
+    for proto in list_protocols(limit=10_000):
+        if proto.protocol_id == protocol_id:
+            return proto
+    return None
+
+
 def update_protocol_status(protocol_id: str, status: str) -> VerificationProtocol | None:
-    """Update protocol status (draft|active|passed|failed)."""
-    lines = []
-    found = None
-    if not VERIFICATION_PATH.exists():
+    """Append a status-update snapshot (append-only)."""
+    if status not in ALLOWED_STATUSES:
+        raise ValueError(f"invalid status {status!r}; allowed={sorted(ALLOWED_STATUSES)}")
+    current = get_protocol(protocol_id)
+    if current is None:
         return None
-
-    with VERIFICATION_PATH.open("r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            record = json.loads(line)
-            if record.get("protocol_id") == protocol_id:
-                record["status"] = status
-                found = VerificationProtocol.model_validate(record)
-            lines.append(json.dumps(record, ensure_ascii=False))
-
-    if found:
-        VERIFICATION_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return found
+    updated = current.model_copy(update={"status": status})
+    append_jsonl(VERIFICATION_PATH, updated.model_dump(mode="json"))
+    return updated

@@ -185,14 +185,22 @@ class ArxivClient:
 
         new_count = 0
         for raw in raw_entries:
-            # Skip entries we already know about via cursor.
-            if not force_all and cursor_value and raw["base_arxiv_id"] <= cursor_value:
-                continue
-
             existing = self.store.get_paper_by_arxiv(raw["base_arxiv_id"])
-            all_versions = [raw["version"]]
+            version = raw["version"]
+
             if existing:
-                all_versions = sorted(set(existing.versions + all_versions))
+                # Skip if we already stored this exact version; still allow newer versions
+                # even when base_id is behind the new-paper cursor.
+                if version in (existing.versions or []):
+                    continue
+                all_versions = sorted(set(existing.versions + [version]))
+                status = existing.processing_status
+            else:
+                # New paper: respect incremental cursor on base arXiv id.
+                if not force_all and cursor_value and raw["base_arxiv_id"] <= cursor_value:
+                    continue
+                all_versions = [version]
+                status = "metadata_only"
 
             canonical_id = pick_canonical_id(arxiv_id=raw["base_arxiv_id"])
             paper = Paper(
@@ -205,8 +213,11 @@ class ArxivClient:
                 pdf_url=raw["pdf_url"] or None,
                 source_url=raw["abs_url"] or None,
                 versions=all_versions,
+                processing_status=status,
+                published_at=raw.get("published") or None,
             )
-            self.store.upsert_paper(paper)
+            # Preserve pipeline status on re-ingest / version bumps.
+            self.store.upsert_paper(paper, preserve_status=bool(existing))
             new_count += 1
 
         # Advance cursor: the largest base arXiv ID in this batch.

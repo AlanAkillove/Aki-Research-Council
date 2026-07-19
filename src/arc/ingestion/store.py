@@ -69,6 +69,7 @@ class PaperStore:
                 versions        TEXT NOT NULL DEFAULT '[]',
                 related_projects TEXT NOT NULL DEFAULT '[]',
                 processing_status TEXT NOT NULL DEFAULT 'metadata_only',
+                published_at    TEXT,
                 created_at      TEXT NOT NULL,
                 updated_at      TEXT NOT NULL
             );
@@ -102,23 +103,41 @@ class PaperStore:
             CREATE INDEX IF NOT EXISTS idx_evidence_paper
                 ON evidence(paper_id);
         """)
+        self._migrate()
+
+    def _migrate(self) -> None:
+        cols = {row[1] for row in self.conn.execute("PRAGMA table_info(papers)")}
+        if "published_at" not in cols:
+            self.conn.execute("ALTER TABLE papers ADD COLUMN published_at TEXT")
+            self.conn.commit()
 
     # ------------------------------------------------------------------
     # Paper CRUD
     # ------------------------------------------------------------------
 
-    def upsert_paper(self, paper: Paper) -> str:
-        """Insert or update a paper by canonical_id. Returns the id."""
+    def upsert_paper(
+        self,
+        paper: Paper,
+        *,
+        preserve_status: bool = False,
+    ) -> str:
+        """Insert or update a paper by canonical_id. Returns the id.
+
+        If ``preserve_status`` and the row already exists, keep the DB
+        ``processing_status`` so re-ingest cannot reset NORMALIZED/SCREENED.
+        """
         now = datetime.now(timezone.utc).isoformat()
         row = self._paper_to_row(paper, now)
 
         c = self.conn
         existing = c.execute(
-            "SELECT created_at FROM papers WHERE canonical_id = ?",
+            "SELECT created_at, processing_status FROM papers WHERE canonical_id = ?",
             (paper.canonical_id,),
         ).fetchone()
         if existing:
             row["created_at"] = existing["created_at"]
+            if preserve_status:
+                row["processing_status"] = existing["processing_status"]
 
         c.execute(
             """INSERT INTO papers (
@@ -127,14 +146,14 @@ class PaperStore:
                 title, authors, categories, abstract,
                 pdf_url, source_url, code_urls,
                 versions, related_projects, processing_status,
-                created_at, updated_at
+                published_at, created_at, updated_at
             ) VALUES (
                 :canonical_id, :doi, :arxiv_id,
                 :openreview_id, :semantic_scholar_id, :openalex_id,
                 :title, :authors, :categories, :abstract,
                 :pdf_url, :source_url, :code_urls,
                 :versions, :related_projects, :processing_status,
-                :created_at, :updated_at
+                :published_at, :created_at, :updated_at
             ) ON CONFLICT(canonical_id) DO UPDATE SET
                 doi             = excluded.doi,
                 arxiv_id        = excluded.arxiv_id,
@@ -151,6 +170,7 @@ class PaperStore:
                 versions        = excluded.versions,
                 related_projects = excluded.related_projects,
                 processing_status = excluded.processing_status,
+                published_at    = COALESCE(excluded.published_at, papers.published_at),
                 updated_at      = excluded.updated_at
             """,
             row,
@@ -169,6 +189,14 @@ class PaperStore:
         row = self.conn.execute(
             "SELECT * FROM papers WHERE arxiv_id = ?",
             (arxiv_id,),
+        ).fetchone()
+        return self._row_to_paper(row) if row else None
+
+    def get_paper_by_doi(self, doi: str) -> Paper | None:
+        doi_norm = doi.strip().lower()
+        row = self.conn.execute(
+            "SELECT * FROM papers WHERE lower(doi) = ? OR canonical_id = ?",
+            (doi_norm, f"doi:{doi_norm}"),
         ).fetchone()
         return self._row_to_paper(row) if row else None
 
@@ -326,11 +354,13 @@ class PaperStore:
             "versions": json.dumps(paper.versions, ensure_ascii=False),
             "related_projects": json.dumps(paper.related_projects, ensure_ascii=False),
             "processing_status": paper.processing_status,
+            "published_at": paper.published_at,
             "created_at": now,
             "updated_at": now,
         }
 
     def _row_to_paper(self, row: sqlite3.Row) -> Paper:
+        keys = row.keys()
         return Paper(
             canonical_id=row["canonical_id"],
             doi=row["doi"],
@@ -348,4 +378,5 @@ class PaperStore:
             versions=json.loads(row["versions"]),
             related_projects=json.loads(row["related_projects"]),
             processing_status=row["processing_status"],
+            published_at=row["published_at"] if "published_at" in keys else None,
         )

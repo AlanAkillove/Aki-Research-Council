@@ -1,7 +1,7 @@
 # ARC 验收清单（Acceptance Criteria）
 
 > **用途**：阶段完成的可检查定义。未勾选不得宣称该阶段「完成」。  
-> **版本**：v0.3  
+> **版本**：v0.3.1（2026-07-19 审核纠偏：仅保留代码+人工均已证实的项）  
 > **关联**：[`01-prd-summary.md`](./01-prd-summary.md) · [`02-architecture.md`](./02-architecture.md) · [`03-tech-spec.md`](./03-tech-spec.md)
 
 图例：`[ ]` 未完成 · `[x]` 已完成 · `N/A` 本阶段不适用
@@ -10,15 +10,15 @@
 
 ## 0. 全局质量门禁（所有阶段共用）
 
-- [x] 重要判断均有来源（Evidence ID 或可点击链接），无裸断言
-- [x] Claim 类型未把 `inference` / `hypothesis` 标成 `fact`
-- [x] 新颖性表述落在 Tech Spec 五档枚举内，无「首创/全新」绝对措辞
-- [x] 同一逻辑论文（含多版本）不在同一日作为两条「新论文」推荐
-- [x] 日报头版 ≤3；精读 ≤4；新 Idea ≤1；动作 ≤3
+- [ ] 重要判断均有来源（Evidence ID 或可点击链接），无裸断言
+- [ ] Claim 类型未把 `inference` / `hypothesis` 标成 `fact`（API 须强制；无证据不得写 fact）
+- [ ] 新颖性表述落在 Tech Spec 五档枚举内，无「首创/全新」绝对措辞
+- [ ] 同一逻辑论文（含多版本）不在同一日作为两条「新论文」推荐
+- [x] 日报头版 ≤3；精读 ≤4；新 Idea ≤1；动作 ≤3（配置 + 模板限额）
 - [x] 允许并正确渲染「今日无足以改变判断的新证据」
-- [x] 每次 run 写入成本/模型/Prompt/git 复现日志
+- [ ] 每次 run 写入成本/模型/Prompt/git 复现日志
 - [x] 采集或分析失败时能降级出 `partial` 报告，不静默空洞成功
-- [x] 无私有全文或密钥泄漏到公开 Pages
+- [x] 无私有全文或密钥泄漏到公开 Pages（当前无公开 Pages 发布）
 
 ---
 
@@ -28,10 +28,10 @@
 
 - [x] arXiv 按配置类别增量抓取
 - [ ] OpenReview / Semantic Scholar / OpenAlex 至少各有一条可用接入路径
-- [x] 元数据归一 + DOI/arXiv/标题指纹去重
-- [ ] 版本更新识别为 update 事件（至少记录 version 列表）
+- [ ] 元数据归一 + DOI/arXiv/标题指纹去重（DOI 主键与版本增量须修实）
+- [ ] 版本更新识别为 update 事件（至少记录 version 列表且不被 cursor 永久跳过）
 - [x] `research_state` 可配置 ≥1 个项目与开放问题
-- [x] 两阶段筛选：硬过滤 → LLM 多维 JSON 精排
+- [x] 两阶段筛选：硬过滤 → LLM 多维 JSON 精排（筛后须推进 SCREENED）
 - [x] 三个频道可开关：`ai_for_math` / `structured_and_reliable_vision` / `combinatorics_and_matroids`
 - [x] 生成每日 Markdown + 自包含 HTML（Jinja2；色板与第一屏结构符合 [`05-ui-design.md`](./05-ui-design.md)）
 - [x] 基础反馈可写入 `feedback.jsonl`（不改历史报告）
@@ -54,9 +54,9 @@ P1 全部 P1.2 通过后，才启动 P2 全文证据与多角色评审。
 
 ### P2.1 功能
 
-- [x] 对 ≤5 篇/日进行全文/TeX 证据抽取，生成 Evidence Pack
+- [ ] 对 ≤5 篇/日进行全文/TeX 证据抽取，生成 Evidence Pack（当前仅为摘要抽取，须诚实标注）
 - [x] Historian / Skeptic / Liaison 结构化输出并入库
-- [x] Claim Ledger 可追加；写入正式 State 须 `approved_by: chair`
+- [ ] Claim Ledger 可追加；写入正式 State 须 `approved_by: chair`（门禁须强制）
 - [x] 日报含 **Research State Changes** 栏目
 - [x] 能关联到具体 `project_id` / `question_id`
 - [x] 周会 Markdown 纪要可生成
@@ -79,11 +79,11 @@ P2.2 通过后进入 P3。
 
 ### P3.1 功能
 
-- [x] Idea 生命周期全状态可迁移；rejected 不可物理删除
+- [ ] Idea 生命周期全状态可迁移；rejected 不可物理删除（创建不得跳级；拒绝须留审计字段）
 - [ ] Chair 决议：`READ|TRY|WATCH|ARCHIVE|NO-GO|UPDATE`
-- [x] 周会想法锦标赛（Generation / Skeptic / Feasibility）且每周 ≤1 个进入待验证
+- [ ] 周会想法锦标赛（Generation / Skeptic / Feasibility）且每周 ≤1 个进入待验证（须经 Chair，不得假晋级）
 - [x] 可编辑周会 PPTX（python-pptx）+ Markdown 纪要
-- [x] 反馈校准排序；输出月度权重敏感性摘要
+- [ ] 反馈校准排序；输出月度权重敏感性摘要（算法须读 ranking.yaml 且有样本门槛）
 - [x] 70/20/10 探索配比可配置并在附录可审计
 - [x] 月度回顾报告可生成
 
@@ -107,14 +107,14 @@ P3.2 通过后，才考虑 P4 执行器。
 
 - [x] 从 Idea 生成最小验证协议（步骤、期望、失败条件）
 - [ ] 可选：小规模脚本/计算辅助与结果回写
-- [x] 根据失败更新 hypothesis / rejected
-- [x] **禁止**：自动修改正式论文、自动投稿、擅自大规模训练
+- [ ] 根据失败更新 hypothesis / rejected
+- [x] **禁止**：自动修改正式论文、自动投稿、擅自大规模训练（尚无执行器）
 
 ### P4.2 验收标准
 
 - [x] 验证协议均可人工独立执行
-- [x] 结果回写不覆盖原始实验日志（只追加）
-- [ ] 任何自动执行都需显式用户确认开关（默认关）
+- [ ] 结果回写不覆盖原始实验日志（只追加）
+- [ ] 任何自动执行都需显式用户确认开关（默认关；guard 须接入执行路径）
 
 ---
 
@@ -147,7 +147,7 @@ P3.2 通过后，才考虑 P4 执行器。
 
 | 阶段 | 日期 | 结果 | 备注 |
 |------|------|------|------|
-| P1 |  |  |  |
+| P1 |  |  | 未达 P1.2，不得签字 |
 | P2 |  |  |  |
 | P3 |  |  |  |
 | P4 |  |  |  |

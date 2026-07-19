@@ -105,6 +105,7 @@ class Paper(BaseModel):
     versions: list[str] = Field(default_factory=list)
     related_projects: list[str] = Field(default_factory=list)
     processing_status: str = "metadata_only"
+    published_at: str | None = None  # ISO8601 from source when available
 
 
 class Evidence(BaseModel):
@@ -153,6 +154,11 @@ class Idea(BaseModel):
     feasibility: dict[str, str] = Field(default_factory=dict)
     max_contribution: str = ""
     easiest_failure: str = ""
+    # Rejection audit (Tech Spec §8.3)
+    rejected_at: datetime | None = None
+    rejection_reason: str = ""
+    rejection_evidence: list[str] = Field(default_factory=list)
+    revive_when: list[str] = Field(default_factory=list)
 
 
 class ScreenScores(BaseModel):

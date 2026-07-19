@@ -1,6 +1,6 @@
 """Idea Tournament — Generation / Skeptic / Feasibility (Tech Spec §8.3).
 
-每周至多 1 个方向进入「待验证」。
+每周至多 1 个方向进入「待验证」。默认不自动晋升（须显式 auto_promote）。
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ import logging
 from pydantic import BaseModel, Field
 
 from arc.council.schemas import TournamentEntry, TournamentOutput
-from arc.memory import list_ideas, transition_idea
+from arc.memory import get_idea, list_ideas, transition_idea
 from arc.providers import ModelProvider
 
 logger = logging.getLogger(__name__)
@@ -26,19 +26,42 @@ class _FeasibilityScore(BaseModel):
     notes: str = Field(default="", description="Feasibility assessment notes")
 
 
+def _promote_to_validated(idea_id: str) -> str:
+    """Walk legal transitions to validated_candidate. Returns final stage."""
+    path = {
+        "signal": ["hypothesis", "candidate", "validated_candidate"],
+        "hypothesis": ["candidate", "validated_candidate"],
+        "candidate": ["validated_candidate"],
+    }
+    idea = get_idea(idea_id)
+    if idea is None:
+        raise ValueError(f"idea not found: {idea_id}")
+    stages = path.get(idea.stage.value)
+    if not stages:
+        raise ValueError(f"cannot promote from stage {idea.stage.value}")
+    current = idea.stage.value
+    for stage in stages:
+        transition_idea(idea_id, stage)
+        current = stage
+    final = get_idea(idea_id)
+    if final is None or final.stage.value != "validated_candidate":
+        raise ValueError(
+            f"promotion incomplete for {idea_id}: expected validated_candidate, got "
+            f"{final.stage.value if final else None}"
+        )
+    return current
+
+
 async def run_tournament(
     provider: ModelProvider,
     max_ideas: int = 5,
-    auto_promote: bool = True,
+    auto_promote: bool = False,
 ) -> TournamentOutput:
     """Run the weekly idea tournament.
 
-    1. Load active ideas (signal / hypothesis / candidate stages)
-    2. For each, run LLM-based Skeptic review + Feasibility assessment
-    3. Score and rank entries
-    4. Select ≤1 winner and (if auto_promote) transition to validated_candidate
-
-    Returns ``TournamentOutput`` with all entries and winner info.
+    ``auto_promote`` defaults to False: Chair/human should confirm before
+    advancing Research State. When True, promotes at most one winner and only
+    reports ``advanced_to`` if disk state matches.
     """
     candidates = []
     for stage in ("signal", "hypothesis", "candidate"):
@@ -60,7 +83,9 @@ async def run_tournament(
         }
 
         skeptic = await provider.generate("tournament_skeptic", _SkepticScore, context)
-        feasibility = await provider.generate("tournament_feasibility", _FeasibilityScore, context)
+        feasibility = await provider.generate(
+            "tournament_feasibility", _FeasibilityScore, context
+        )
 
         composite = (skeptic.score + feasibility.score) / 2.0
         entry = TournamentEntry(
@@ -74,11 +99,6 @@ async def run_tournament(
             feasibility_notes=feasibility.notes,
         )
         entries.append(entry)
-        logger.info(
-            "Tournament [%s] %s: skeptic=%.2f feasibility=%.2f composite=%.2f",
-            idea.idea_id, idea.title[:50],
-            skeptic.score, feasibility.score, composite,
-        )
 
     entries.sort(key=lambda e: e.composite, reverse=True)
 
@@ -89,41 +109,30 @@ async def run_tournament(
             break
 
     output = TournamentOutput(entries=entries)
+    if not winner:
+        return output
 
-    if winner and auto_promote:
-        try:
-            # Walk through required intermediate stages
-            w = winner
-            current = None
-            for idea in list_ideas():
-                if idea.idea_id == w.idea_id:
-                    current = idea.stage.value
-                    break
+    output.winner_id = winner.idea_id
+    output.winner_reason = (
+        f"Highest composite score ({winner.composite}) "
+        f"with acceptable skeptic evaluation."
+    )
 
-            target = "validated_candidate"
-            _path = {
-                "signal": ["hypothesis", "candidate", target],
-                "hypothesis": ["candidate", target],
-                "candidate": [target],
-            }
-            stages = _path.get(current, [target])
-            for s in stages:
-                try:
-                    transition_idea(w.idea_id, s)
-                except ValueError:
-                    break
+    if not auto_promote:
+        output.advanced_to = ""
+        logger.info(
+            "Tournament winner %s selected (auto_promote=False; not advanced)",
+            winner.idea_id,
+        )
+        return output
 
-            output.winner_id = w.idea_id
-            output.winner_reason = (
-                f"Highest composite score ({w.composite}) "
-                f"with acceptable skeptic evaluation."
-            )
-            output.advanced_to = target
-            logger.info(
-                "Tournament winner: %s (%s) promoted to validated_candidate",
-                w.idea_id, w.title[:50],
-            )
-        except Exception as exc:
-            logger.warning("Tournament: could not promote %s: %s", w.idea_id, exc)
+    try:
+        final_stage = _promote_to_validated(winner.idea_id)
+        output.advanced_to = final_stage
+        logger.info("Tournament winner %s promoted to %s", winner.idea_id, final_stage)
+    except Exception as exc:
+        output.advanced_to = ""
+        output.winner_reason += f" Promotion failed: {exc}"
+        logger.warning("Tournament: could not promote %s: %s", winner.idea_id, exc)
 
     return output

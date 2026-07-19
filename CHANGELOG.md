@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Claim/Idea/验证协议改为 JSONL 追加快照（禁止整文件重写）
+- `fact` 须有证据 ID；Idea 创建仅允许 `signal`；拒绝须写原因
+- ingest 保留 `processing_status`；版本更新不再被 cursor 永久跳过
+- arXiv `YYMM` 日期解析；DOI 去重按 canonical 键；筛选后推进 `SCREENED`
+- 锦标赛默认不晋升且晋升须磁盘一致；证据层诚实标为摘要抽取（tier B）
+- 反馈校准读 `ranking.yaml` 并设样本门槛；RunLog 填充 git/model/cursors
+- 验收清单去掉不实勾选（不得宣称 P1–P4 完成）
+
 ### Added
 
 - P4 安全开关：`is_auto_execution_enabled()` / `require_auto_execution()`（默认 OFF）

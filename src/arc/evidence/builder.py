@@ -1,7 +1,7 @@
-"""Evidence Pack Builder — LLM extraction from paper abstracts.
+"""Evidence Pack Builder — currently abstract-level extraction only.
 
-Tech Spec §6: Evidence Pack structure with typed evidence items.
-Each evidence item gets an EV-{uuid} ID and is stored in PaperStore.
+Honest labeling: source_tier=B, extraction_method=abstract_llm.
+Fulltext/TeX is NOT implemented yet — do not claim P2 fulltext acceptance.
 """
 
 from __future__ import annotations
@@ -34,34 +34,23 @@ class _EvidenceResponse(BaseModel):
     evidence: list[_EvidenceItem]
 
 
-EVIDENCE_SCHEMA_PROMPT = """You are extracting structured evidence from a research paper abstract.
-Return a JSON object with an "evidence" array. Each item must have:
-- content: string (exact claim or finding from the abstract)
-- evidence_type: one of "theorem", "experiment", "ablation", "claim", "limitation", "other"
-- confidence: float 0.0-1.0
-
-Extract up to 5 distinct pieces of evidence. Include limitations if mentioned."""
-
-
 async def build_evidence_pack(
     store: PaperStore,
     paper: Paper,
     provider: ModelProvider,
 ) -> list[Evidence]:
-    """Use LLM to extract evidence items from a paper's abstract.
+    """Extract evidence-like items from title/abstract via LLM.
 
-    Stores each item via ``store.upsert_evidence`` and transitions the
-    paper's status to ``EVIDENCE_READY``.
-
-    Returns the list of created ``Evidence`` objects.
+    Does **not** parse PDF/TeX. Empty extractions do not advance status.
     """
-    logger.info("Building evidence pack for %s", paper.canonical_id)
+    logger.info("Building abstract evidence pack for %s", paper.canonical_id)
 
     context = {
         "title": paper.title,
         "abstract": paper.abstract,
         "categories": paper.categories,
         "authors": paper.authors[:5],
+        "note": "Source is abstract only; do not invent page/section locations.",
     }
 
     raw = await provider.generate(
@@ -76,20 +65,27 @@ async def build_evidence_pack(
             id=f"EV-{uuid4().hex[:12]}",
             paper_id=paper.canonical_id,
             content=item.content,
-            evidence_type=EvidenceType(item.evidence_type) if item.evidence_type in EvidenceType._value2member_map_ else EvidenceType.OTHER,
-            source_tier=SourceTier.A,
-            extraction_method="api",
+            evidence_type=(
+                EvidenceType(item.evidence_type)
+                if item.evidence_type in EvidenceType._value2member_map_
+                else EvidenceType.OTHER
+            ),
+            source_tier=SourceTier.B,
+            extraction_method="abstract_llm",
             confidence=item.confidence,
+            location={"source": "abstract"},
         )
         store.upsert_evidence(ev)
         evidence_list.append(ev)
 
-    # Update paper status
-    paper.processing_status = PipelineStatus.EVIDENCE_READY.value
-    store.upsert_paper(paper)
+    if evidence_list:
+        paper.processing_status = PipelineStatus.EVIDENCE_READY.value
+        store.upsert_paper(paper)
+    else:
+        logger.warning("No evidence extracted for %s; status unchanged", paper.canonical_id)
 
     logger.info(
-        "Evidence pack for %s: %d items extracted",
+        "Evidence pack for %s: %d abstract items",
         paper.canonical_id,
         len(evidence_list),
     )

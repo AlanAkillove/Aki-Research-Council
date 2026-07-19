@@ -21,3 +21,7 @@ reports/topic/*
 .DS_Store
 dist/
 *.egg-info/
+
+# Runtime research logs (append-only local state)
+research_state/*.jsonl
+

@@ -6,6 +6,7 @@ import asyncio
 from datetime import UTC, date, datetime
 from uuid import uuid4
 
+from arc.providers import ModelProvider
 from arc.ingestion import ArxivClient, PaperStore
 from arc.memory import list_projects, load_researcher_profile
 from arc.normalization import run_normalization
@@ -129,7 +130,7 @@ def build_daily_context(
             "confidence": _score_to_confidence(sp.composite),
             "composite": round(sp.composite, 3),
             "action": sp.scores.recommended_action,
-            "source": p.source_url or f"https://arxiv.org/abs/{p.arxiv_id}" if p.arxiv_id else "",
+            "source": (p.source_url or (f"https://arxiv.org/abs/{p.arxiv_id}" if p.arxiv_id else "")),
         })
 
     if not headlines:
@@ -150,7 +151,7 @@ def build_daily_context(
             "verdict": sp.scores.recommended_action.upper(),
             "score": round(sp.composite, 3),
             "authors": ", ".join(p.authors[:3]) + ("…" if len(p.authors) > 3 else ""),
-            "source": p.source_url or f"https://arxiv.org/abs/{p.arxiv_id}" if p.arxiv_id else "",
+            "source": (p.source_url or (f"https://arxiv.org/abs/{p.arxiv_id}" if p.arxiv_id else "")),
         })
 
     # --- Radar: weak signals from stage 1 candidates not stage-2-screened ---
@@ -324,11 +325,51 @@ async def run_daily_full(
 
     finished = datetime.now(UTC)
     status = "partial" if failures else "success"
+
+    git_commit = None
+    try:
+        import subprocess
+
+        git_commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(DATA_DIR.parent),
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except Exception:
+        git_commit = None
+
+    model_versions: dict[str, str] = {}
+    try:
+        from arc.config import load_models_config
+
+        models = load_models_config()
+        model_versions = {
+            "triage": models.triage.model,
+            "structured_analysis": models.structured_analysis.model,
+            "deep_review": models.deep_review.model,
+        }
+    except Exception:
+        pass
+
+    source_cursors: dict = {}
+    try:
+        store = PaperStore(DATA_DIR / "indexes")
+        try:
+            source_cursors = {c["source"]: c["cursor_value"] for c in store.list_cursors()}
+        finally:
+            store.close()
+    except Exception:
+        pass
+
     return RunLog(
         run_id=str(uuid4()),
+        git_commit=git_commit,
         started_at=started,
         finished_at=finished,
         mode="daily_lite",
+        model_versions=model_versions,
+        source_cursors=source_cursors,
         status=status,
         failures=failures,
     )

@@ -94,7 +94,7 @@ def check_dedup(
 
     # 2. DOI
     if paper.doi:
-        existing = store.get_paper(paper.doi)
+        existing = store.get_paper_by_doi(paper.doi)
         if existing and existing.canonical_id != paper.canonical_id:
             return DedupResult(
                 is_duplicate=True,
@@ -181,12 +181,9 @@ def run_normalization(
                     dedup.match_reason,
                     dedup.existing_canonical_id,
                 )
-                paper.processing_status = PipelineStatus.NORMALIZED.value
+                paper.processing_status = "DUPLICATE"
                 store.upsert_paper(paper)
                 report.duplicates += 1
-                fp_index.setdefault(
-                    title_fingerprint(paper.title), set()
-                ).add(paper.canonical_id)
                 continue
 
             paper.processing_status = PipelineStatus.NORMALIZED.value

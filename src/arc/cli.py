@@ -405,12 +405,32 @@ app.add_typer(_claim_app, name="claim")
 def claim_add(
     paper_id: str = typer.Argument(..., help="Paper canonical_id"),
     text: str = typer.Argument(..., help="Claim text"),
-    type: str = typer.Option("inference", "--type", "-t",
-        help="Claim type: fact|author_claim|inference|hypothesis|recommendation"),
+    type: str = typer.Option(
+        "inference",
+        "--type",
+        "-t",
+        help="Claim type: fact|author_claim|inference|hypothesis|recommendation",
+    ),
+    evidence: list[str] = typer.Option(
+        [],
+        "--evidence",
+        "-e",
+        help="Evidence IDs (required for type=fact; repeatable)",
+    ),
     generated_by: str = typer.Option("cli", "--by", help="Generator role"),
 ) -> None:
     """Add a claim to the ledger (append-only)."""
-    claim = _write_claim(paper_id, text, type, generated_by=generated_by)
+    try:
+        claim = _write_claim(
+            paper_id,
+            text,
+            type,
+            evidence_ids=evidence,
+            generated_by=generated_by,
+        )
+    except ValueError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED)
+        raise typer.Exit(code=1) from exc
     typer.echo(f"Claim recorded: {claim.claim_id}")
 
 
@@ -453,11 +473,9 @@ app.add_typer(_idea_app, name="idea")
 def idea_add(
     title: str = typer.Argument(..., help="Idea title"),
     claim: str = typer.Option("", "--claim", "-c", help="Core claim"),
-    stage: str = typer.Option("signal", "--stage", "-s",
-        help="signal|hypothesis|candidate|validated_candidate|active_project"),
 ) -> None:
-    """Add a new idea to the ledger."""
-    idea = _write_idea(title=title, claim=claim, stage=stage)
+    """Add a new idea at stage=signal (promote via `arc idea transition`)."""
+    idea = _write_idea(title=title, claim=claim, stage="signal")
     typer.echo(f"Idea created: {idea.idea_id} [{idea.stage.value}]")
 
 
@@ -478,19 +496,25 @@ def idea_list(
 @_idea_app.command("transition")
 def idea_transition(
     idea_id: str = typer.Argument(..., help="Idea ID (IDEA-...)"),
-    stage: str = typer.Argument(...,
-        help="Target stage: signal|hypothesis|candidate|validated_candidate|active_project|rejected"),
+    stage: str = typer.Argument(
+        ...,
+        help="Target stage: hypothesis|candidate|validated_candidate|active_project|rejected",
+    ),
+    reason: str = typer.Option("", "--reason", help="Required when rejecting"),
 ) -> None:
     """Transition an idea to a new stage."""
     try:
-        result = _transition_idea(idea_id, stage)
+        kwargs = {}
+        if stage == "rejected":
+            kwargs["rejection_reason"] = reason or "unspecified"
+        result = _transition_idea(idea_id, stage, **kwargs)
         if result:
             typer.echo(f"Idea {idea_id} transitioned to {result.stage.value}")
         else:
             typer.secho(f"Idea not found: {idea_id}", fg=typer.colors.RED)
     except ValueError as exc:
-        typer.secho(f"Error: {exc}", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
+        typer.secho(str(exc), fg=typer.colors.RED)
+        raise typer.Exit(code=1) from exc
 
 
 # ---------------------------------------------------------------------------
@@ -621,7 +645,9 @@ def council_tournament(
         True, "--echo/--no-echo", help="Use EchoModelProvider (offline)",
     ),
     dry_run: bool = typer.Option(
-        False, "--dry-run", help="Score but don't promote winner",
+        True,
+        "--dry-run/--promote",
+        help="Default: score only. Pass --promote to advance winner (still no Chair Decision object).",
     ),
 ) -> None:
     """Run idea tournament: Skeptic + Feasibility evaluation."""
@@ -636,7 +662,9 @@ def council_tournament(
         from arc.providers.openai_compatible import OpenAICompatibleProvider
         provider = OpenAICompatibleProvider(models.structured_analysis)
 
-    result = asyncio.run(run_tournament(provider, max_ideas=max_ideas, auto_promote=not dry_run))
+    result = asyncio.run(
+        run_tournament(provider, max_ideas=max_ideas, auto_promote=not dry_run)
+    )
 
     if not result.entries:
         typer.echo("No ideas to evaluate. Add ideas with 'arc idea add' first.")

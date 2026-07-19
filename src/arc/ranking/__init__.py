@@ -134,15 +134,29 @@ def passes_hard_filter(
 
 
 def _paper_date(paper: Paper) -> date | None:
-    """Best-effort extraction of the paper's publication date."""
-    # Try source_url for arXiv ID → extract date
-    if paper.arxiv_id and len(paper.arxiv_id) >= 7:
-        prefix = paper.arxiv_id[:4]
-        if prefix.isdigit():
-            year = int(prefix)
-            if 2000 <= year <= 2099:
-                return date(year, 1, 1)  # approximate
-    return date.today()
+    """Best-effort publication date from ``published_at`` or arXiv YYMM id."""
+    if paper.published_at:
+        raw = paper.published_at.strip()
+        try:
+            return datetime.fromisoformat(raw.replace("Z", "+00:00")).date()
+        except ValueError:
+            if len(raw) >= 10 and raw[4] == "-" and raw[7] == "-":
+                try:
+                    return date.fromisoformat(raw[:10])
+                except ValueError:
+                    pass
+
+    # arXiv ids look like YYMM.NNNNN — NOT a four-digit year.
+    if paper.arxiv_id and len(paper.arxiv_id) >= 4 and paper.arxiv_id[:4].isdigit():
+        yymm = paper.arxiv_id[:4]
+        yy, mm = int(yymm[:2]), int(yymm[2:4])
+        if 1 <= mm <= 12:
+            year = 2000 + yy if yy < 70 else 1900 + yy
+            try:
+                return date(year, mm, 1)
+            except ValueError:
+                return None
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -240,10 +254,12 @@ async def run_stage2(
     provider: ModelProvider,
     ranking: RankingConfig,
     max_screen: int = 30,
+    store: PaperStore | None = None,
 ) -> ScreeningReport:
     """LLM screen candidates, compute scores, return ranking.
 
     Respects ``ranking.daily_limits`` to bound LLM calls.
+    Papers that are screened (pass or ignore) are marked ``SCREENED``.
     """
     report = ScreeningReport(stage1_passed=len(candidates))
     max_s = min(max_screen, ranking.daily_limits.llm_screened)
@@ -256,27 +272,20 @@ async def run_stage2(
             scores = await screen_paper(provider, paper)
             comp = composite_score(scores, ranking)
             action = scores.recommended_action
-
-            if action == "ignore":
-                scored.append(
-                    ScoredPaper(
-                        paper=paper,
-                        scores=scores,
-                        composite=comp,
-                        passed=False,
-                        rejection_reason="llm_recommend_ignore",
-                    )
-                )
-                continue
+            passed = action != "ignore"
 
             scored.append(
                 ScoredPaper(
                     paper=paper,
                     scores=scores,
                     composite=comp,
-                    passed=True,
+                    passed=passed,
+                    rejection_reason="" if passed else "llm_recommend_ignore",
                 )
             )
+            if store is not None:
+                paper.processing_status = PipelineStatus.SCREENED.value
+                store.upsert_paper(paper)
         except Exception as exc:
             report.errors.append(f"{paper.canonical_id}: {exc}")
             logger.warning("Screen error %s: %s", paper.canonical_id, exc)
@@ -306,27 +315,20 @@ async def run_screening(
     provider: ModelProvider,
     ranking: RankingConfig | None = None,
 ) -> ScreeningReport:
-    """Run the full two-stage screening pipeline.
-
-    1. Load hard-filter config and run Stage 1
-    2. Load ranking config and run Stage 2 (LLM)
-    3. Return report with scored candidates
-    """
+    """Run the full two-stage screening pipeline."""
     from arc.config import load_ranking_config
 
     ranking = ranking or load_ranking_config()
-
-    # Stage 1
     cfg = load_hard_filter_config()
+    papers = store.get_papers(status=PipelineStatus.NORMALIZED.value, limit=300)
     candidates = run_stage1(store, cfg)
 
     if not candidates:
         logger.info("Screening: no candidates after stage 1")
-        return ScreeningReport(stage1_input=0)
+        return ScreeningReport(stage1_input=len(papers), stage1_passed=0)
 
-    # Stage 2
-    report = await run_stage2(candidates, provider, ranking)
-    report.stage1_input = len(candidates)
+    report = await run_stage2(candidates, provider, ranking, store=store)
+    report.stage1_input = len(papers)
     return report
 
 
@@ -337,50 +339,66 @@ async def run_screening(
 
 def calibrate_weights_from_feedback(
     ranking: RankingConfig | None = None,
+    *,
+    min_samples: int = 20,
 ) -> dict[str, dict]:
-    """Analyze feedback.jsonl and suggest weight adjustments.
+    """Suggest weight adjustments from feedback.jsonl.
 
-    Reads feedback entries, counts positive signals (值得精读 / 直接相关 / 可迁移)
-    vs negative signals (证据不足 / 宣传大于贡献 / 不再推荐).
-
-    Returns a dict mapping weight keys to current/suggested values.
+    Requires ``min_samples`` labeled positive+negative entries before suggesting
+    non-identity changes. Loads ``config/ranking.yaml`` by default.
     """
+    from arc.config import load_ranking_config
     from arc.memory import list_feedback
     from arc.schemas import FeedbackLabel
 
-    ranking = ranking or RankingConfig()
+    ranking = ranking or load_ranking_config()
     entries = list_feedback(limit=500)
 
     positive_count = sum(
-        1 for e in entries
-        if e.label in (FeedbackLabel.WORTH_READING, FeedbackLabel.DIRECTLY_RELEVANT,
-                       FeedbackLabel.METHOD_TRANSFERABLE)
+        1
+        for e in entries
+        if e.label
+        in (
+            FeedbackLabel.WORTH_READING,
+            FeedbackLabel.DIRECTLY_RELEVANT,
+            FeedbackLabel.METHOD_TRANSFERABLE,
+        )
     )
     negative_count = sum(
-        1 for e in entries
-        if e.label in (FeedbackLabel.INSUFFICIENT_EVIDENCE,
-                       FeedbackLabel.HYPE_OVER_CONTRIBUTION,
-                       FeedbackLabel.STOP_RECOMMENDING)
+        1
+        for e in entries
+        if e.label
+        in (
+            FeedbackLabel.INSUFFICIENT_EVIDENCE,
+            FeedbackLabel.HYPE_OVER_CONTRIBUTION,
+            FeedbackLabel.STOP_RECOMMENDING,
+        )
     )
     total_relevant = positive_count + negative_count
 
     result: dict[str, dict] = {}
-    if total_relevant == 0:
+    if total_relevant < min_samples:
         for k, v in ranking.weights.items():
-            result[k] = {"current": v, "suggested": v, "reason": "no_feedback_data"}
+            result[k] = {
+                "current": v,
+                "suggested": v,
+                "reason": f"insufficient_samples ({total_relevant}<{min_samples})",
+            }
         return result
 
-    # Adjust weights based on feedback ratio
-    ratio = positive_count / total_relevant if total_relevant > 0 else 0.5
-    adjustment = (ratio - 0.5) * 0.1  # max ±0.05 adjustment
+    ratio = positive_count / total_relevant
+    # Only nudge relevance-like weights; leave penalty P alone.
+    nudge_keys = {"R", "L", "E", "F", "N", "T"}
+    adjustment = (ratio - 0.5) * 0.1  # max ±0.05
 
     for k, v in ranking.weights.items():
-        suggested = round(max(0.05, min(0.40, v + adjustment)), 3)
-        result[k] = {
-            "current": v,
-            "suggested": suggested,
-            "reason": f"feedback_ratio={ratio:.2f} ({positive_count}+/{total_relevant}total)",
-        }
+        if k in nudge_keys:
+            suggested = round(max(0.05, min(0.40, v + adjustment)), 3)
+            reason = f"feedback_ratio={ratio:.2f} ({positive_count}+/{total_relevant})"
+        else:
+            suggested = v
+            reason = "penalty_or_fixed_weight"
+        result[k] = {"current": v, "suggested": suggested, "reason": reason}
 
     return result
 

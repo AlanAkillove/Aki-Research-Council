@@ -1,8 +1,16 @@
-"""Append-only JSONL helpers and Research State access."""
+"""Append-only JSONL helpers and Research State access.
+
+Hard rules (Tech Spec / AGENTS):
+- Event logs are append-only; updates append a new snapshot (latest-wins on read).
+- ``fact`` claims require at least one evidence id.
+- New ideas may only start at ``signal`` (promote via ``transition_idea``).
+- Chair approval appends an approved snapshot; it never rewrites history.
+"""
 
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 from uuid import uuid4
@@ -10,14 +18,16 @@ from uuid import uuid4
 import yaml
 
 from arc.paths import RESEARCH_STATE_DIR
-from arc.schemas import FEEDBACK_FILE, FeedbackEntry, FeedbackLabel
 from arc.schemas import CLAIMS_FILE, Claim, ClaimType
+from arc.schemas import FEEDBACK_FILE, FeedbackEntry, FeedbackLabel
 from arc.schemas import IDEAS_FILE, Idea, IdeaStage
 
 
 FEEDBACK_PATH = RESEARCH_STATE_DIR / FEEDBACK_FILE
 CLAIMS_PATH = RESEARCH_STATE_DIR / CLAIMS_FILE
 IDEAS_PATH = RESEARCH_STATE_DIR / IDEAS_FILE
+
+CREATE_IDEA_STAGES = frozenset({IdeaStage.SIGNAL})
 
 
 def append_jsonl(path: Path, record: dict[str, Any]) -> None:
@@ -34,6 +44,16 @@ def iter_jsonl(path: Path) -> Iterator[dict[str, Any]]:
             line = line.strip()
             if line:
                 yield json.loads(line)
+
+
+def _latest_by_key(records: list[dict[str, Any]], key: str) -> list[dict[str, Any]]:
+    """Keep the last snapshot for each id (file order = chronological)."""
+    latest: dict[str, dict[str, Any]] = {}
+    for record in records:
+        kid = record.get(key)
+        if kid:
+            latest[str(kid)] = record
+    return list(latest.values())
 
 
 def load_researcher_profile(path: Path | None = None) -> dict[str, Any]:
@@ -56,7 +76,7 @@ def list_projects() -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Feedback (append-only JSONL, Tech Spec §10)
+# Feedback
 # ---------------------------------------------------------------------------
 
 
@@ -66,7 +86,6 @@ def write_feedback(
     comment: str = "",
     source: str = "cli",
 ) -> FeedbackEntry:
-    """Record a user feedback entry (append-only). Returns the entry."""
     if isinstance(label, str):
         label = FeedbackLabel(label)
     entry = FeedbackEntry(
@@ -81,14 +100,13 @@ def write_feedback(
 
 
 def list_feedback(limit: int = 50) -> list[FeedbackEntry]:
-    """Iterate feedback entries, newest first."""
     entries = [FeedbackEntry.model_validate(r) for r in iter_jsonl(FEEDBACK_PATH)]
     entries.sort(key=lambda e: e.created_at, reverse=True)
     return entries[:limit]
 
 
 # ---------------------------------------------------------------------------
-# Claim Ledger (append-only JSONL, Tech Spec §6.2)
+# Claim Ledger
 # ---------------------------------------------------------------------------
 
 
@@ -99,16 +117,20 @@ def write_claim(
     evidence_ids: list[str] | None = None,
     generated_by: str = "system",
 ) -> Claim:
-    """Record a claim in the ledger (append-only). Returns the claim."""
+    """Append a claim. ``fact`` requires non-empty evidence_ids."""
     if isinstance(type, str):
         type = ClaimType(type)
+    evidence_ids = evidence_ids or []
+    if type == ClaimType.FACT and not evidence_ids:
+        raise ValueError("fact claims require at least one evidence id (Tech Spec §6.2)")
     claim = Claim(
         claim_id=f"CLM-{uuid4().hex[:12]}",
         paper_id=paper_id,
         text=text,
         type=type,
-        evidence_for=evidence_ids or [],
+        evidence_for=evidence_ids,
         generated_by=generated_by,
+        approved_by=None,
     )
     append_jsonl(CLAIMS_PATH, claim.model_dump(mode="json"))
     return claim
@@ -117,47 +139,45 @@ def write_claim(
 def list_claims(
     paper_id: str | None = None,
     limit: int = 100,
+    *,
+    approved_only: bool = False,
 ) -> list[Claim]:
-    """Iterate claims, optionally filtered by paper."""
-    all_claims = [
-        Claim.model_validate(r) for r in iter_jsonl(CLAIMS_PATH)
-    ]
-    all_claims.sort(key=lambda c: c.claim_id, reverse=True)
+    raw = _latest_by_key(list(iter_jsonl(CLAIMS_PATH)), "claim_id")
+    claims = [Claim.model_validate(r) for r in raw]
+    claims.sort(key=lambda c: c.claim_id, reverse=True)
     if paper_id:
-        all_claims = [c for c in all_claims if c.paper_id == paper_id]
-    return all_claims[:limit]
+        claims = [c for c in claims if c.paper_id == paper_id]
+    if approved_only:
+        claims = [c for c in claims if c.approved_by]
+    return claims[:limit]
+
+
+def get_claim(claim_id: str) -> Claim | None:
+    for claim in list_claims(limit=10_000):
+        if claim.claim_id == claim_id:
+            return claim
+    return None
 
 
 def approve_claim(
     claim_id: str,
     approver: str = "chair",
 ) -> Claim | None:
-    """Mark a claim as approved by the Chair.
-
-    This rewrites the JSONL line in-place (the only mutation allowed
-    on the ledger, and only for the ``approved_by`` field).
-    """
-    lines = []
-    found = None
-    if not CLAIMS_PATH.exists():
+    """Append an approved snapshot for *claim_id* (append-only)."""
+    if approver != "chair":
+        raise ValueError("Only approver='chair' may approve formal claims")
+    current = get_claim(claim_id)
+    if current is None:
         return None
-    with CLAIMS_PATH.open("r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            record = json.loads(line)
-            if record.get("claim_id") == claim_id and not record.get("approved_by"):
-                record["approved_by"] = approver
-                found = Claim.model_validate(record)
-            lines.append(json.dumps(record, ensure_ascii=False))
-    if found:
-        CLAIMS_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return found
+    if current.approved_by:
+        return None
+    approved = current.model_copy(update={"approved_by": approver})
+    append_jsonl(CLAIMS_PATH, approved.model_dump(mode="json"))
+    return approved
 
 
 # ---------------------------------------------------------------------------
-# Idea lifecycle (append-only JSONL, Tech Spec §5.3 / §8.3)
+# Idea lifecycle
 # ---------------------------------------------------------------------------
 
 
@@ -167,7 +187,7 @@ VALID_TRANSITIONS: dict[str, list[str]] = {
     "candidate": ["validated_candidate", "rejected"],
     "validated_candidate": ["active_project", "rejected"],
     "active_project": ["rejected"],
-    "rejected": [],  # terminal
+    "rejected": [],
 }
 
 
@@ -177,9 +197,14 @@ def write_idea(
     stage: IdeaStage | str = IdeaStage.SIGNAL,
     derived_from: dict[str, list[str]] | None = None,
 ) -> Idea:
-    """Create a new idea and append to the ledger."""
+    """Create a new idea at ``signal`` only."""
     if isinstance(stage, str):
         stage = IdeaStage(stage)
+    if stage not in CREATE_IDEA_STAGES:
+        raise ValueError(
+            f"New ideas must start at 'signal' (got {stage.value}); "
+            "use transition_idea to promote"
+        )
     idea = Idea(
         idea_id=f"IDEA-{uuid4().hex[:12]}",
         title=title,
@@ -195,48 +220,57 @@ def list_ideas(
     stage: str | None = None,
     limit: int = 50,
 ) -> list[Idea]:
-    """List ideas, optionally filtered by stage."""
-    all_ideas = [Idea.model_validate(r) for r in iter_jsonl(IDEAS_PATH)]
-    all_ideas.sort(key=lambda i: i.idea_id, reverse=True)
+    raw = _latest_by_key(list(iter_jsonl(IDEAS_PATH)), "idea_id")
+    ideas = [Idea.model_validate(r) for r in raw]
+    ideas.sort(key=lambda i: i.idea_id, reverse=True)
     if stage:
-        all_ideas = [i for i in all_ideas if i.stage.value == stage]
-    return all_ideas[:limit]
+        ideas = [i for i in ideas if i.stage.value == stage]
+    return ideas[:limit]
+
+
+def get_idea(idea_id: str) -> Idea | None:
+    for idea in list_ideas(limit=10_000):
+        if idea.idea_id == idea_id:
+            return idea
+    return None
 
 
 def transition_idea(
     idea_id: str,
     new_stage: IdeaStage | str,
+    *,
+    rejection_reason: str = "",
+    rejection_evidence: list[str] | None = None,
+    revive_when: list[str] | None = None,
 ) -> Idea | None:
-    """Transition an idea to a new stage. Returns updated idea or None.
-
-    Validates against ``VALID_TRANSITIONS``. Rejected is terminal.
-    """
+    """Append a stage-transition snapshot. Rejected requires audit fields."""
     if isinstance(new_stage, str):
         new_stage = IdeaStage(new_stage)
 
-    lines = []
-    found = None
-    if not IDEAS_PATH.exists():
+    current = get_idea(idea_id)
+    if current is None:
         return None
 
-    with IDEAS_PATH.open("r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            record = json.loads(line)
-            if record.get("idea_id") == idea_id:
-                current = IdeaStage(record["stage"])
-                allowed = VALID_TRANSITIONS.get(current.value, [])
-                if new_stage.value not in allowed:
-                    raise ValueError(
-                        f"Cannot transition from {current.value} to {new_stage.value}. "
-                        f"Allowed: {allowed}"
-                    )
-                record["stage"] = new_stage.value
-                found = Idea.model_validate(record)
-            lines.append(json.dumps(record, ensure_ascii=False))
+    allowed = VALID_TRANSITIONS.get(current.stage.value, [])
+    if new_stage.value not in allowed:
+        raise ValueError(
+            f"Cannot transition from {current.stage.value} to {new_stage.value}. "
+            f"Allowed: {allowed}"
+        )
 
-    if found:
-        IDEAS_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return found
+    updates: dict[str, Any] = {"stage": new_stage}
+    if new_stage == IdeaStage.REJECTED:
+        if not rejection_reason:
+            raise ValueError("rejected transitions require rejection_reason")
+        updates.update(
+            {
+                "rejected_at": datetime.now(timezone.utc),
+                "rejection_reason": rejection_reason,
+                "rejection_evidence": rejection_evidence or [],
+                "revive_when": revive_when or [],
+            }
+        )
+
+    updated = current.model_copy(update=updates)
+    append_jsonl(IDEAS_PATH, updated.model_dump(mode="json"))
+    return updated
