@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from uuid import uuid4
 
 from pydantic import BaseModel
@@ -22,6 +23,28 @@ from arc.schemas import VERIFICATION_FILE, VerificationProtocol, VerificationSte
 logger = logging.getLogger(__name__)
 
 VERIFICATION_PATH = RESEARCH_STATE_DIR / VERIFICATION_FILE
+
+# P4 safety switch — OFF by default (Tech Spec P4.2)
+_AUTO_EXEC_KEY = "ARC_AUTO_EXECUTION"
+
+
+def is_auto_execution_enabled() -> bool:
+    """Check whether auto-execution is explicitly enabled.
+
+    Reads from environment variable ARC_AUTO_EXECUTION.
+    Must be "1" or "true" to enable. Default: OFF.
+    """
+    val = os.environ.get(_AUTO_EXEC_KEY, "0").strip().lower()
+    return val in ("1", "true")
+
+
+def require_auto_execution() -> None:
+    """Guard: raise if auto-execution not enabled."""
+    if not is_auto_execution_enabled():
+        raise RuntimeError(
+            f"Auto-execution is DISABLED. Set {_AUTO_EXEC_KEY}=1 or "
+            f"run 'arc config set auto_execution true' to enable."
+        )
 
 
 class _ProtocolResponse(BaseModel):

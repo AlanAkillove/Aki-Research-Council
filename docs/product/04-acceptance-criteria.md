@@ -10,15 +10,15 @@
 
 ## 0. 全局质量门禁（所有阶段共用）
 
-- [ ] 重要判断均有来源（Evidence ID 或可点击链接），无裸断言
-- [ ] Claim 类型未把 `inference` / `hypothesis` 标成 `fact`
-- [ ] 新颖性表述落在 Tech Spec 五档枚举内，无「首创/全新」绝对措辞
-- [ ] 同一逻辑论文（含多版本）不在同一日作为两条「新论文」推荐
-- [ ] 日报头版 ≤3；精读 ≤4；新 Idea ≤1；动作 ≤3
-- [ ] 允许并正确渲染「今日无足以改变判断的新证据」
-- [ ] 每次 run 写入成本/模型/Prompt/git 复现日志
-- [ ] 采集或分析失败时能降级出 `partial` 报告，不静默空洞成功
-- [ ] 无私有全文或密钥泄漏到公开 Pages
+- [x] 重要判断均有来源（Evidence ID 或可点击链接），无裸断言
+- [x] Claim 类型未把 `inference` / `hypothesis` 标成 `fact`
+- [x] 新颖性表述落在 Tech Spec 五档枚举内，无「首创/全新」绝对措辞
+- [x] 同一逻辑论文（含多版本）不在同一日作为两条「新论文」推荐
+- [x] 日报头版 ≤3；精读 ≤4；新 Idea ≤1；动作 ≤3
+- [x] 允许并正确渲染「今日无足以改变判断的新证据」
+- [x] 每次 run 写入成本/模型/Prompt/git 复现日志
+- [x] 采集或分析失败时能降级出 `partial` 报告，不静默空洞成功
+- [x] 无私有全文或密钥泄漏到公开 Pages
 
 ---
 
@@ -26,15 +26,15 @@
 
 ### P1.1 功能
 
-- [ ] arXiv 按配置类别增量抓取
+- [x] arXiv 按配置类别增量抓取
 - [ ] OpenReview / Semantic Scholar / OpenAlex 至少各有一条可用接入路径
-- [ ] 元数据归一 + DOI/arXiv/标题指纹去重
+- [x] 元数据归一 + DOI/arXiv/标题指纹去重
 - [ ] 版本更新识别为 update 事件（至少记录 version 列表）
-- [ ] `research_state` 可配置 ≥1 个项目与开放问题
-- [ ] 两阶段筛选：硬过滤 → LLM 多维 JSON 精排
-- [ ] 三个频道可开关：`ai_for_math` / `structured_and_reliable_vision` / `combinatorics_and_matroids`
-- [ ] 生成每日 Markdown + 自包含 HTML（Jinja2；色板与第一屏结构符合 [`05-ui-design.md`](./05-ui-design.md)）
-- [ ] 基础反馈可写入 `feedback.jsonl`（不改历史报告）
+- [x] `research_state` 可配置 ≥1 个项目与开放问题
+- [x] 两阶段筛选：硬过滤 → LLM 多维 JSON 精排
+- [x] 三个频道可开关：`ai_for_math` / `structured_and_reliable_vision` / `combinatorics_and_matroids`
+- [x] 生成每日 Markdown + 自包含 HTML（Jinja2；色板与第一屏结构符合 [`05-ui-design.md`](./05-ui-design.md)）
+- [x] 基础反馈可写入 `feedback.jsonl`（不改历史报告）
 
 ### P1.2 验收标准（通过条件）
 
@@ -57,9 +57,9 @@ P1 全部 P1.2 通过后，才启动 P2 全文证据与多角色评审。
 - [x] 对 ≤5 篇/日进行全文/TeX 证据抽取，生成 Evidence Pack
 - [x] Historian / Skeptic / Liaison 结构化输出并入库
 - [x] Claim Ledger 可追加；写入正式 State 须 `approved_by: chair`
-- [ ] 日报含 **Research State Changes** 栏目
-- [ ] 能关联到具体 `project_id` / `question_id`
-- [ ] 周会 Markdown 纪要可生成
+- [x] 日报含 **Research State Changes** 栏目
+- [x] 能关联到具体 `project_id` / `question_id`
+- [x] 周会 Markdown 纪要可生成
 
 ### P2.2 验收标准
 
@@ -79,13 +79,13 @@ P2.2 通过后进入 P3。
 
 ### P3.1 功能
 
-- [ ] Idea 生命周期全状态可迁移；rejected 不可物理删除
+- [x] Idea 生命周期全状态可迁移；rejected 不可物理删除
 - [ ] Chair 决议：`READ|TRY|WATCH|ARCHIVE|NO-GO|UPDATE`
-- [ ] 周会想法锦标赛（Generation / Skeptic / Feasibility）且每周 ≤1 个进入待验证
-- [ ] 可编辑周会 PPTX（python-pptx）+ Markdown 纪要
-- [ ] 反馈校准排序；输出月度权重敏感性摘要
-- [ ] 70/20/10 探索配比可配置并在附录可审计
-- [ ] 月度回顾报告可生成
+- [x] 周会想法锦标赛（Generation / Skeptic / Feasibility）且每周 ≤1 个进入待验证
+- [x] 可编辑周会 PPTX（python-pptx）+ Markdown 纪要
+- [x] 反馈校准排序；输出月度权重敏感性摘要
+- [x] 70/20/10 探索配比可配置并在附录可审计
+- [x] 月度回顾报告可生成
 
 ### P3.2 验收标准
 
@@ -105,15 +105,15 @@ P3.2 通过后，才考虑 P4 执行器。
 
 ### P4.1 功能
 
-- [ ] 从 Idea 生成最小验证协议（步骤、期望、失败条件）
+- [x] 从 Idea 生成最小验证协议（步骤、期望、失败条件）
 - [ ] 可选：小规模脚本/计算辅助与结果回写
-- [ ] 根据失败更新 hypothesis / rejected
-- [ ] **禁止**：自动修改正式论文、自动投稿、擅自大规模训练
+- [x] 根据失败更新 hypothesis / rejected
+- [x] **禁止**：自动修改正式论文、自动投稿、擅自大规模训练
 
 ### P4.2 验收标准
 
-- [ ] 验证协议均可人工独立执行
-- [ ] 结果回写不覆盖原始实验日志（只追加）
+- [x] 验证协议均可人工独立执行
+- [x] 结果回写不覆盖原始实验日志（只追加）
 - [ ] 任何自动执行都需显式用户确认开关（默认关）
 
 ---

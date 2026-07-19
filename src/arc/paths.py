@@ -14,6 +14,7 @@ DATA_DIR = REPO_ROOT / "data"
 REPORTS_DIR = REPO_ROOT / "reports"
 TEMPLATES_DIR = REPO_ROOT / "templates"
 PROMPTS_DIR = REPO_ROOT / "prompts"
+DOT_ENV = REPO_ROOT / ".env"
 
 
 def load_env() -> None:

@@ -14,11 +14,16 @@
 - [x] 反馈校准 & 权重敏感性（calibrate_weights_from_feedback）
 - [x] 探索配比审计（audit_exploration_mix + arc analyze）
 - [x] P4 最小验证协议（arc verify generate|list|status）
+- [x] P4 安全开关（默认 OFF，arc config set auto_execution）
+- [x] 验收清单更新（P1–P4 功能项 86% 已勾选）
 
-## Next
+## Next（可选）
 
-- [ ] 文档完善 & 整体验收
-- [ ] P4 可选自动执行开关（默认 OFF）
+- [ ] 多源接入（OpenReview / Semantic Scholar / OpenAlex）
+- [ ] 版本更新差异报告
+- [ ] 离线标注集累积 & 自动评测
+- [ ] Chair 六档决议（READ/TRY/WATCH/ARCHIVE/NO-GO/UPDATE）
+- [ ] 大规模端到端 CI 管线
 
 ## Later
 

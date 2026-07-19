@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from datetime import date
 from typing import Optional
 
@@ -804,6 +805,56 @@ def verify_status(
         typer.echo(f"Protocol {protocol_id} -> {result.status}")
     else:
         typer.secho(f"Protocol not found: {protocol_id}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+# ---------------------------------------------------------------------------
+# arc config (P4 safety switch + misc settings)
+# ---------------------------------------------------------------------------
+
+_config_app = typer.Typer(help="Manage ARC configuration")
+app.add_typer(_config_app, name="config")
+
+
+@_config_app.command("show")
+def config_show() -> None:
+    """Show current runtime configuration."""
+    from arc.verify import is_auto_execution_enabled as _is_auto
+
+    typer.echo(f"auto_execution: {'enabled' if _is_auto() else 'disabled (default)'}")
+    typer.echo("  Set via env ARC_AUTO_EXECUTION=1 or 'arc config set auto_execution true'")
+
+
+@_config_app.command("set")
+def config_set(
+    key: str = typer.Argument(..., help="Config key (e.g. auto_execution)"),
+    value: str = typer.Argument(..., help="Value"),
+) -> None:
+    """Set a runtime config value (persistent via .env)."""
+    from arc.paths import DOT_ENV, ensure_runtime_dirs
+
+    env_path = DOT_ENV
+    if key == "auto_execution":
+        val = "1" if value.lower() in ("true", "1", "yes", "on") else "0"
+        # Update or append ARC_AUTO_EXECUTION in .env
+        lines = []
+        found = False
+        if env_path.exists():
+            lines = env_path.read_text(encoding="utf-8").splitlines()
+        new_lines = []
+        for line in lines:
+            if line.strip().startswith("ARC_AUTO_EXECUTION="):
+                new_lines.append(f"ARC_AUTO_EXECUTION={val}")
+                found = True
+            else:
+                new_lines.append(line)
+        if not found:
+            new_lines.append(f"ARC_AUTO_EXECUTION={val}")
+        env_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+        os.environ["ARC_AUTO_EXECUTION"] = val
+        typer.echo(f"auto_execution set to {'enabled' if val == '1' else 'disabled'}")
+    else:
+        typer.secho(f"Unknown config key: {key}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
 

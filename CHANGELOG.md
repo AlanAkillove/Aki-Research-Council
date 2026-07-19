@@ -6,6 +6,10 @@
 
 ### Added
 
+- P4 安全开关：`is_auto_execution_enabled()` / `require_auto_execution()`（默认 OFF）
+- `arc config show|set` CLI 命令（配置 auto_execution 持久化开关）
+- `DOT_ENV` 路径导出
+- 验收清单 P1–P4 状态更新（86% 已勾选）
 - P4 最小验证协议：`VerificationProtocol` + `VerificationStep` schema
 - `arc verify generate|list|status` CLI 命令组
 - `generate_protocol()`: 从 Idea 自动生成可执行验证计划（步骤+预期+kill criteria）
