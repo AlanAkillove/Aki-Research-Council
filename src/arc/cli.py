@@ -83,13 +83,94 @@ def daily(
         "--all",
         help="Force re-fetch all arXiv categories (only with --no-skeleton)",
     ),
+    editorial: bool = typer.Option(
+        False,
+        "--editorial",
+        help="Write editorial brief (shell fixed, prose from editor layer). "
+        "With --skeleton uses demo candidates; with --no-skeleton uses screen output.",
+    ),
+    quiet: bool = typer.Option(
+        False,
+        "--quiet-day",
+        help="Editorial demo: force a quiet-day brief",
+    ),
+    echo_provider: bool = typer.Option(
+        True,
+        "--echo/--llm",
+        help="Editorial: Echo offline voice vs real LLM",
+    ),
 ) -> None:
     """Run daily brief pipeline.
 
     Default (--skeleton) generates a placeholder report with no network calls.
+    Use --editorial for the living-core experiment on branch feat/editorial-daily-brief.
     Use --no-skeleton to run the full pipeline: ingest → normalize → screen → report.
     """
     run_day = date.fromisoformat(day) if day else date.today()
+
+    if editorial:
+        from arc.providers import EchoModelProvider
+        from arc.reporting import write_editorial_reports
+        from arc.reporting.editor import (
+            brief_to_template_context,
+            candidates_packet_from_screening,
+            demo_candidates_packet,
+            write_daily_brief,
+        )
+
+        async def _run_editorial() -> None:
+            if echo_provider:
+                provider = EchoModelProvider()
+            else:
+                from arc.config import load_models_config
+                from arc.providers.openai_compatible import OpenAICompatibleProvider
+
+                models = load_models_config()
+                provider = OpenAICompatibleProvider(models.deep_review)
+
+            if skeleton or quiet:
+                packet = [] if quiet else demo_candidates_packet()
+                brief = await write_daily_brief(
+                    provider,
+                    day=run_day,
+                    candidates=packet,
+                )
+                # Echo uses packet; force quiet via empty packet already handled
+                if quiet:
+                    from arc.reporting.editor import fallback_brief_from_packet
+
+                    brief = fallback_brief_from_packet([], quiet=True)
+            else:
+                # Real screen then editor
+                store = PaperStore(DATA_DIR / "indexes")
+                try:
+                    if echo_provider:
+                        screen_provider = EchoModelProvider()
+                    else:
+                        from arc.config import load_models_config
+                        from arc.providers.openai_compatible import OpenAICompatibleProvider
+
+                        models = load_models_config()
+                        screen_provider = OpenAICompatibleProvider(models.triage)
+                    from arc.ranking import run_screening
+
+                    report = await run_screening(store, screen_provider)
+                    packet = candidates_packet_from_screening(report)
+                    brief = await write_daily_brief(
+                        provider, day=run_day, candidates=packet
+                    )
+                finally:
+                    store.close()
+
+            ctx = brief_to_template_context(brief, day=run_day, partial=False)
+            md_path, html_path = write_editorial_reports(run_day.isoformat(), ctx)
+            typer.echo(f"editorial brief → {md_path}")
+            typer.echo(f"editorial html  → {html_path}")
+            typer.echo(f"quiet_day={brief.quiet_day} headlines={len(brief.headlines)} actions={len(brief.actions)}")
+
+        asyncio.run(_run_editorial())
+        return
+
     if skeleton:
         run = run_daily_skeleton(run_day)
         typer.echo(f"run_id={run.run_id} status={run.status} mode={run.mode}")

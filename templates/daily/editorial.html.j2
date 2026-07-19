@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ brand }} · {{ date }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
+  <style>
+{% include 'styles/tokens.css' %}
+{% include 'styles/report.css' %}
+.lede {
+  font-family: var(--arc-font-display);
+  font-size: 22px;
+  line-height: 1.35;
+  color: var(--arc-ink);
+  letter-spacing: -0.02em;
+  margin: 0 0 40px;
+}
+.move { color: var(--arc-primary); font-weight: 500; }
+.quiet {
+  margin-top: 32px;
+  padding: 20px 24px;
+  background: var(--arc-surface-soft);
+  border-radius: var(--arc-radius-lg);
+  color: var(--arc-muted);
+}
+.ids { font-family: var(--arc-font-mono); font-size: 12px; color: var(--arc-muted); }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <p class="brand">{{ brand }}</p>
+    <p class="meta">
+      {{ date }} · 编辑晨报 · 约 {{ reading_minutes_hint }} 分钟
+      {% if partial %}<span class="badge partial">partial</span>{% endif %}
+    </p>
+
+    <p class="lede">{{ lede }}</p>
+
+    {% if show_headlines %}
+    <h2>今日判断</h2>
+    {% for h in headlines %}
+    <div class="card">
+      <div class="headline-title"><span class="headline-num">{{ loop.index }}.</span>{{ h.title }}</div>
+      <p>{{ h.why_it_matters }}</p>
+      <p class="ids">
+        {% if h.paper_id %}{{ h.paper_id }}{% endif %}
+        {% if h.question_id %} · {{ h.question_id }}{% endif %}
+        · {{ h.confidence }}
+      </p>
+      <p class="move">→ {{ h.suggested_move }}</p>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {% if show_state %}
+    <h2>研究状态有何变化</h2>
+    <div class="card"><p>{{ state_changes }}</p></div>
+    {% endif %}
+
+    {% if show_featured %}
+    <h2>值得停留的论文</h2>
+    {% for p in featured %}
+    <div class="card">
+      <div class="headline-title">{{ p.paper_title }}</div>
+      <p><strong>一句话</strong> {{ p.one_line_judgment }}</p>
+      <p><strong>实际增量</strong> {{ p.actual_delta }}</p>
+      <p><strong>与我</strong> {{ p.link_to_project }}</p>
+      <p class="muted">
+        <span class="badge">{{ p.verdict }}</span>
+        {% if p.source_url %}
+        · <a href="{{ p.source_url }}">{{ p.paper_id }}</a>
+        {% else %}
+        · {{ p.paper_id }}
+        {% endif %}
+      </p>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {% if show_radar %}
+    <h2>弱信号</h2>
+    <div class="card">
+      <ul style="margin:0;padding-left:1.25rem">
+      {% for r in radar %}
+        <li style="margin:6px 0">{{ r }}</li>
+      {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% if show_ideas %}
+    <h2>Idea 动态</h2>
+    <div class="card">
+      <ul style="margin:0;padding-left:1.25rem">
+      {% for i in idea_notes %}
+        <li style="margin:6px 0">{{ i }}</li>
+      {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% if show_actions %}
+    <h2>今日动作</h2>
+    <ol class="actions">
+      {% for a in actions %}
+      <li>{{ a.text }}{% if a.paper_id %} <span class="ids">({{ a.paper_id }})</span>{% endif %}</li>
+      {% endfor %}
+    </ol>
+    {% endif %}
+
+    {% if quiet_day and not show_headlines %}
+    <div class="quiet">安静日：无头版。把注意力留在正在推进的证明/实验上。</div>
+    {% endif %}
+
+    <footer>
+      项目 {{ projects | join(' · ') if projects else '—' }}
+      · {{ profile_name }}
+      · 壳固定 · 芯由主笔层生成
+    </footer>
+  </main>
+</body>
+</html>

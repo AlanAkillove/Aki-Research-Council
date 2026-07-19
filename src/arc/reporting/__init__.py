@@ -27,6 +27,14 @@ def render_daily_html(context: dict[str, Any]) -> str:
     return _env().get_template("daily/report.html.j2").render(**context)
 
 
+def render_editorial_markdown(context: dict[str, Any]) -> str:
+    return _env().get_template("daily/editorial.md.j2").render(**context)
+
+
+def render_editorial_html(context: dict[str, Any]) -> str:
+    return _env().get_template("daily/editorial.html.j2").render(**context)
+
+
 def write_daily_reports(date_str: str, context: dict[str, Any]) -> tuple[Path, Path]:
     out_dir = REPORTS_DIR / "daily"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -34,6 +42,17 @@ def write_daily_reports(date_str: str, context: dict[str, Any]) -> tuple[Path, P
     html_path = out_dir / f"{date_str}.html"
     md_path.write_text(render_daily_markdown(context), encoding="utf-8")
     html_path.write_text(render_daily_html(context), encoding="utf-8")
+    return md_path, html_path
+
+
+def write_editorial_reports(date_str: str, context: dict[str, Any]) -> tuple[Path, Path]:
+    """Write editorial-style daily brief (optional sections)."""
+    out_dir = REPORTS_DIR / "daily"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    md_path = out_dir / f"{date_str}.editorial.md"
+    html_path = out_dir / f"{date_str}.editorial.html"
+    md_path.write_text(render_editorial_markdown(context), encoding="utf-8")
+    html_path.write_text(render_editorial_html(context), encoding="utf-8")
     return md_path, html_path
 
 

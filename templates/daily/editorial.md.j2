@@ -1,0 +1,72 @@
+# {{ brand }}
+
+**{{ date }}** · 编辑晨报 · 约 {{ reading_minutes_hint }} 分钟{% if partial %} · `partial`{% endif %}
+
+{{ lede }}
+
+{% if show_headlines %}
+## 今日判断
+
+{% for h in headlines %}
+{{ loop.index }}. **{{ h.title }}**  
+{{ h.why_it_matters }}  
+{% if h.paper_id %}`{{ h.paper_id }}`{% endif %}{% if h.question_id %} · `{{ h.question_id }}`{% endif %} · {{ h.confidence }}  
+→ {{ h.suggested_move }}
+{% endfor %}
+{% endif %}
+
+{% if show_state %}
+## 研究状态有何变化
+
+{{ state_changes }}
+{% endif %}
+
+{% if show_featured %}
+## 值得停留的论文
+
+{% for p in featured %}
+### {{ p.paper_title }}
+
+**一句话** {{ p.one_line_judgment }}  
+**实际增量** {{ p.actual_delta }}  
+**与我** {{ p.link_to_project }}  
+**决议** `{{ p.verdict }}` · [`{{ p.paper_id }}`]({{ p.source_url }})
+
+{% endfor %}
+{% endif %}
+
+{% if show_radar %}
+## 弱信号
+
+{% for r in radar %}
+- {{ r }}
+{% endfor %}
+{% endif %}
+
+{% if show_ideas %}
+## Idea 动态
+
+{% for i in idea_notes %}
+- {{ i }}
+{% endfor %}
+{% endif %}
+
+{% if show_actions %}
+## 今日动作
+
+{% for a in actions %}
+{{ loop.index }}. {{ a.text }}{% if a.paper_id %}（`{{ a.paper_id }}`）{% endif %}
+
+{% endfor %}
+{% endif %}
+
+{% if quiet_day and not show_headlines %}
+---
+
+_安静日：无头版。把注意力留在正在推进的证明/实验上。_
+{% endif %}
+
+## 附录
+
+- 项目: {{ projects | join(', ') if projects else '(none)' }}
+- 档案: {{ profile_name }}

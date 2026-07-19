@@ -89,11 +89,12 @@ class EchoModelProvider(ModelProvider):
                 "kill_criteria": ["Cannot reproduce within 2 weeks"],
                 "minimum_success": "Ablation degrades performance >= 10%",
             })
+        if name == "DailyBrief":
+            from arc.reporting.editor import fallback_brief_from_packet
+
+            candidates = context.get("candidates") or []
+            quiet = bool(context.get("force_quiet"))
+            return fallback_brief_from_packet(candidates, quiet=quiet)  # type: ignore[return-value]
         if name == "_FeasibilityScore":
             return schema.model_validate({"score": 0.8, "notes": "Single GPU sufficient"})  # type: ignore[return-value]
-        if name == "TournamentOutput":
-            return schema.model_validate({  # type: ignore[return-value]
-                "entries": [{"idea_id": "IDEA-echo", "title": "Echo Idea", "claim": "Test", "composite": 0.75}],
-                "winner_id": "IDEA-echo",
-            })
         raise NotImplementedError(f"EchoModelProvider has no fixture for {name} ({task})")
